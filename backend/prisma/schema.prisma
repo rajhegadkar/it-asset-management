@@ -1,0 +1,626 @@
+// Prisma schema for IT Asset Management System
+// Supports SQLite for zero-config local/embedded deployment and PostgreSQL for enterprise Docker/Cloud
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  address     String?
+  email       String?
+  phone       String?
+  website     String?
+  taxId       String?
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  roles       Role[]
+  departments Department[]
+  locations   Location[]
+  vendors     Vendor[]
+  categories  Category[]
+  assets      Asset[]
+  employees   Employee[]
+  licenses    SoftwareLicense[]
+  consumables Consumable[]
+  tickets     Ticket[]
+  settings    SystemSetting[]
+  auditLogs   AuditLog[]
+  notifications Notification[]
+}
+
+model Role {
+  id             String           @id @default(uuid())
+  name           String           // SUPER_ADMIN, IT_ADMIN, SUPPORT_ENGINEER, EMPLOYEE, or custom
+  displayName    String
+  description    String?
+  isSystem       Boolean          @default(false)
+  organizationId String?
+  organization   Organization?    @relation(fields: [organizationId], references: [id])
+  users          User[]
+  permissions    RolePermission[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique // e.g. assets:create, assets:read, etc.
+  module      String           // assets, users, tickets, reports, settings
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id                  String         @id @default(uuid())
+  email               String         @unique
+  username            String         @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  phone               String?
+  avatarUrl           String?
+  roleId              String
+  role                Role           @relation(fields: [roleId], references: [id])
+  organizationId      String?
+  organization        Organization?  @relation(fields: [organizationId], references: [id])
+  isActive            Boolean        @default(true)
+  isEmailVerified     Boolean        @default(false)
+  twoFactorEnabled    Boolean        @default(false)
+  twoFactorSecret     String?
+  failedLoginAttempts Int            @default(0)
+  lockoutUntil        DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  employeeProfile     Employee?
+  assignedTickets     Ticket[]       @relation("AssignedEngineer")
+  loginHistories      LoginHistory[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  ticketComments      TicketComment[]
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  status    String   // SUCCESS, FAILED, LOCKED
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model Employee {
+  id               String            @id @default(uuid())
+  employeeId       String            @unique // EMP-001
+  firstName        String
+  lastName         String
+  email            String            @unique
+  phone            String?
+  designation      String?
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  locationId       String?
+  location         Location?         @relation(fields: [locationId], references: [id])
+  managerId        String?
+  manager          Employee?         @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates     Employee[]        @relation("ManagerSubordinates")
+  joiningDate      DateTime?
+  employmentStatus String            @default("ACTIVE") // ACTIVE, PROBATION, NOTICE_PERIOD, TERMINATED, RESIGNED
+  costCenter       String?
+  profilePhoto     String?
+  userId           String?           @unique
+  user             User?             @relation(fields: [userId], references: [id])
+  organizationId   String?
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  assets           Asset[]           @relation("AssignedEmployee")
+  assignments      AssetAssignment[]
+  returns          AssetReturn[]
+  transfersFrom    AssetTransfer[]   @relation("TransfersFrom")
+  transfersTo      AssetTransfer[]   @relation("TransfersTo")
+  ticketsRequested Ticket[]          @relation("Requester")
+  licenseAssignments LicenseAssignment[]
+  consumableTransactions ConsumableTransaction[]
+}
+
+model Department {
+  id             String        @id @default(uuid())
+  name           String
+  code           String        @unique // IT, HR, FIN
+  departmentHead String?
+  locationId     String?
+  location       Location?     @relation(fields: [locationId], references: [id])
+  costCenter     String?
+  isActive       Boolean       @default(true)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  employees      Employee[]
+  assets         Asset[]
+  tickets        Ticket[]
+  transfersFrom  AssetTransfer[] @relation("DeptTransfersFrom")
+  transfersTo    AssetTransfer[] @relation("DeptTransfersTo")
+}
+
+model Location {
+  id             String        @id @default(uuid())
+  name           String
+  code           String        @unique
+  type           String        @default("OFFICE") // COMPANY, COUNTRY, STATE, CITY, OFFICE, BUILDING, FLOOR, ROOM, RACK
+  parentId       String?
+  parent         Location?     @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children       Location[]    @relation("LocationHierarchy")
+  address        String?
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  employees      Employee[]
+  departments    Department[]
+  assets         Asset[]
+  tickets        Ticket[]
+  consumables    Consumable[]
+  transfersFrom  AssetTransfer[] @relation("LocTransfersFrom")
+  transfersTo    AssetTransfer[] @relation("LocTransfersTo")
+}
+
+model Vendor {
+  id             String         @id @default(uuid())
+  name           String
+  code           String         @unique
+  contactPerson  String?
+  email          String?
+  phone          String?
+  address        String?
+  website        String?
+  taxId          String?
+  paymentTerms   String?
+  contractDetails String?
+  notes          String?
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  assets         Asset[]
+  licenses       SoftwareLicense[]
+  maintenance    MaintenanceRecord[]
+  consumables    Consumable[]
+}
+
+model Category {
+  id                 String        @id @default(uuid())
+  name               String
+  code               String        @unique
+  parentId           String?
+  parent             Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories      Category[]    @relation("CategoryHierarchy")
+  description        String?
+  icon               String?
+  customFieldsSchema String?       // JSON string describing custom fields
+  organizationId     String?
+  organization       Organization? @relation(fields: [organizationId], references: [id])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  assets             Asset[]
+}
+
+model Asset {
+  id                 String             @id @default(uuid())
+  assetId            String             @unique // IT-LAP-000001
+  assetTag           String             @unique
+  barcode            String             @unique
+  qrCode             String?
+  serialNumber       String             @unique
+  name               String
+  categoryId         String
+  category           Category           @relation(fields: [categoryId], references: [id])
+  subcategoryId      String?
+  status             String             @default("IN_STOCK") // IN_STOCK, AVAILABLE, ASSIGNED, IN_USE, UNDER_MAINTENANCE, REPAIR, LOST, STOLEN, DAMAGED, RETIRED, DISPOSED, RESERVED, PENDING_ALLOCATION, PENDING_RETURN, RETURNED
+  condition          String             @default("GOOD")     // NEW, EXCELLENT, GOOD, FAIR, POOR, DAMAGED
+
+  // Organization & Hierarchy
+  organizationId     String?
+  organization       Organization?      @relation(fields: [organizationId], references: [id])
+  departmentId       String?
+  department         Department?        @relation(fields: [departmentId], references: [id])
+  locationId         String?
+  location           Location?          @relation(fields: [locationId], references: [id])
+  costCenter         String?
+  businessUnit       String?
+  floor              String?
+  room               String?
+  rack               String?
+  ownerDepartmentId  String?
+
+  // Hardware Specifications
+  manufacturer       String?
+  brand              String?
+  model              String?
+  partNumber         String?
+  serviceTag         String?
+  productNumber      String?
+  cpu                String?
+  cpuGeneration      String?
+  ram                String?
+  storage            String?
+  gpu                String?
+  operatingSystem    String?
+  osVersion          String?
+  macAddress         String?
+  ipAddress          String?
+  hostname           String?
+
+  // Network & Server Specifications
+  managementIp       String?
+  vlan               String?
+  firmwareVersion    String?
+  portCount          Int?
+  uplinkPort         String?
+  rackUnit           String?
+  datacenter         String?
+  raid               String?
+  raidController     String?
+  hypervisor         String?
+  vmCount            Int?
+  powerSupply        String?
+  iloAddress         String?
+
+  // Purchase & Warranty
+  vendorId           String?
+  vendor             Vendor?            @relation(fields: [vendorId], references: [id])
+  poNumber           String?
+  invoiceNumber      String?
+  purchaseDate       DateTime?
+  purchaseCost       Float?             @default(0.0)
+  currency           String             @default("USD")
+  warrantyStart      DateTime?
+  warrantyEnd        DateTime?
+  warrantyProvider   String?
+  amcStart           DateTime?
+  amcEnd             DateTime?
+  contractNumber     String?
+
+  // Lifecycle
+  acquisitionDate    DateTime?
+  commissionDate     DateTime?
+  expectedLifeYears  Int?               @default(3)
+  eolDate            DateTime?
+  disposalDate       DateTime?
+  disposalReason     String?
+  disposalMethod     String?
+  disposalValue      Float?
+  disposalApprovedBy String?
+
+  // Assignment current
+  currentEmployeeId  String?
+  currentEmployee    Employee?          @relation("AssignedEmployee", fields: [currentEmployeeId], references: [id])
+  assignmentDate     DateTime?
+  expectedReturnDate DateTime?
+  allocationType     String?
+  handoverStatus     String?
+
+  // Custom data & attachments
+  customFields       String?            // JSON string for dynamic fields
+  notes              String?
+  description        String?
+  imageUrl           String?
+  isArchived         Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  assignments        AssetAssignment[]
+  returns            AssetReturn[]
+  transfers          AssetTransfer[]
+  lifecycleLogs      AssetLifecycleLog[]
+  maintenanceRecords MaintenanceRecord[]
+  tickets            Ticket[]
+  licenseAssignments LicenseAssignment[]
+  consumableUsage    ConsumableTransaction[]
+}
+
+model AssetAssignment {
+  id                 String       @id @default(uuid())
+  assetId            String
+  asset              Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employeeId         String
+  employee           Employee     @relation(fields: [employeeId], references: [id])
+  allocatedById      String
+  allocationType     String       @default("PERMANENT") // PERMANENT, TEMPORARY, PROJECT, LOANER, REMOTE_WORK, REPLACEMENT
+  allocationDate     DateTime     @default(now())
+  expectedReturnDate DateTime?
+  accessories        String?      // JSON array of accessories: ["Charger", "Mouse", "Laptop Bag", "HDMI Cable"]
+  termsAccepted      Boolean      @default(false)
+  acknowledgedAt     DateTime?
+  acknowledgementType String?     // CHECKBOX, DIGITAL_SIGNATURE, OTP
+  acknowledgementIp  String?
+  handoverDocUrl     String?
+  signatureData      String?      // Base64 or text signature
+  status             String       @default("ACTIVE") // ACTIVE, RETURNED, OVERDUE
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  returns            AssetReturn[]
+}
+
+model AssetReturn {
+  id                 String           @id @default(uuid())
+  assetAssignmentId  String?
+  assetAssignment    AssetAssignment? @relation(fields: [assetAssignmentId], references: [id])
+  assetId            String
+  asset              Asset            @relation(fields: [assetId], references: [id])
+  employeeId         String
+  employee           Employee         @relation(fields: [employeeId], references: [id])
+  returnedDate       DateTime         @default(now())
+  receivedById       String
+  condition          String           // EXCELLENT, GOOD, FAIR, DAMAGED
+  damageNotes        String?
+  accessoriesReturned String?         // JSON array
+  missingAccessories String?         // JSON array
+  returnReceiptUrl   String?
+  notes              String?
+  createdAt          DateTime         @default(now())
+}
+
+model AssetTransfer {
+  id               String      @id @default(uuid())
+  assetId          String
+  asset            Asset       @relation(fields: [assetId], references: [id])
+  fromEmployeeId   String?
+  fromEmployee     Employee?   @relation("TransfersFrom", fields: [fromEmployeeId], references: [id])
+  toEmployeeId     String?
+  toEmployee       Employee?   @relation("TransfersTo", fields: [toEmployeeId], references: [id])
+  fromDepartmentId String?
+  fromDepartment   Department? @relation("DeptTransfersFrom", fields: [fromDepartmentId], references: [id])
+  toDepartmentId   String?
+  toDepartment     Department? @relation("DeptTransfersTo", fields: [toDepartmentId], references: [id])
+  fromLocationId   String?
+  fromLocation     Location?   @relation("LocTransfersFrom", fields: [fromLocationId], references: [id])
+  toLocationId     String?
+  toLocation       Location?   @relation("LocTransfersTo", fields: [toLocationId], references: [id])
+  transferDate     DateTime    @default(now())
+  reason           String?
+  approvedById     String?
+  notes            String?
+  createdAt        DateTime    @default(now())
+}
+
+model AssetLifecycleLog {
+  id            String   @id @default(uuid())
+  assetId       String
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  eventType     String   // PURCHASE, RECEIVING, INVENTORY, TAGGING, ALLOCATION, ACTIVE_USE, MAINTENANCE, TRANSFER, RETURN, RETIREMENT, DISPOSAL, STATUS_CHANGE, UPDATE
+  description   String
+  fromStatus    String?
+  toStatus      String?
+  performedById String?
+  performedBy   String?  // Name or email of operator
+  ipAddress     String?
+  metadata      String?  // JSON additional information
+  createdAt     DateTime @default(now())
+}
+
+model Ticket {
+  id                 String          @id @default(uuid())
+  ticketNumber       String          @unique // TIK-000001
+  subject            String
+  description        String
+  category           String          @default("HARDWARE") // HARDWARE, SOFTWARE, NETWORK, ACCESS, OTHER
+  priority           String          @default("MEDIUM")   // CRITICAL, HIGH, MEDIUM, LOW
+  status             String          @default("OPEN")     // OPEN, ASSIGNED, IN_PROGRESS, PENDING_USER, PENDING_VENDOR, RESOLVED, CLOSED, REOPENED
+  requesterId        String
+  requester          Employee        @relation("Requester", fields: [requesterId], references: [id])
+  assignedEngineerId String?
+  assignedEngineer   User?           @relation("AssignedEngineer", fields: [assignedEngineerId], references: [id])
+  assetId            String?
+  asset              Asset?          @relation(fields: [assetId], references: [id])
+  departmentId       String?
+  department         Department?     @relation(fields: [departmentId], references: [id])
+  locationId         String?
+  location           Location?       @relation(fields: [locationId], references: [id])
+  slaDueDate         DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  organizationId     String?
+  organization       Organization?   @relation(fields: [organizationId], references: [id])
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  comments           TicketComment[]
+}
+
+model TicketComment {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  authorName  String
+  comment     String
+  isInternal  Boolean  @default(false)
+  attachments String?  // JSON array of file paths
+  createdAt   DateTime @default(now())
+}
+
+model MaintenanceRecord {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  maintenanceType String   // PREVENTIVE, CORRECTIVE, EMERGENCY
+  vendorId        String?
+  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
+  engineerName    String?
+  startDate       DateTime
+  endDate         DateTime?
+  issue           String
+  diagnosis       String?
+  workPerformed   String?
+  partsReplaced   String?
+  cost            Float?   @default(0.0)
+  downtimeHours   Float?   @default(0.0)
+  warrantyCovered Boolean  @default(false)
+  notes           String?
+  organizationId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SoftwareLicense {
+  id                String              @id @default(uuid())
+  softwareName      String
+  publisher         String
+  version           String?
+  licenseType       String              // PER_USER, PER_DEVICE, SUBSCRIPTION, PERPETUAL, CONCURRENT, ENTERPRISE
+  licenseKey        String?
+  purchaseDate      DateTime?
+  expiryDate        DateTime?
+  quantityPurchased Int                 @default(1)
+  quantityUsed      Int                 @default(0)
+  cost              Float?              @default(0.0)
+  vendorId          String?
+  vendor            Vendor?             @relation(fields: [vendorId], references: [id])
+  contractNumber    String?
+  renewalDate       DateTime?
+  organizationId    String?
+  organization      Organization?       @relation(fields: [organizationId], references: [id])
+  notes             String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  assignments       LicenseAssignment[]
+}
+
+model LicenseAssignment {
+  id           String          @id @default(uuid())
+  licenseId    String
+  license      SoftwareLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  employeeId   String?
+  employee     Employee?       @relation(fields: [employeeId], references: [id])
+  assetId      String?
+  asset        Asset?          @relation(fields: [assetId], references: [id])
+  assignedDate DateTime        @default(now())
+  notes        String?
+}
+
+model Consumable {
+  id             String                  @id @default(uuid())
+  name           String
+  category       String                  // RAM, SSD, HDD, KEYBOARD, MOUSE, TONER, CABLE, ADAPTER, BATTERY, CHARGER, SFP_MODULE, OTHER
+  itemCode       String                  @unique
+  stockQuantity  Int                     @default(0)
+  minQuantity    Int                     @default(5)
+  maxQuantity    Int                     @default(100)
+  unitCost       Float?                  @default(0.0)
+  locationId     String?
+  location       Location?               @relation(fields: [locationId], references: [id])
+  vendorId       String?
+  vendor         Vendor?                 @relation(fields: [vendorId], references: [id])
+  organizationId String?
+  organization   Organization?           @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  transactions   ConsumableTransaction[]
+}
+
+model ConsumableTransaction {
+  id            String      @id @default(uuid())
+  consumableId  String
+  consumable    Consumable  @relation(fields: [consumableId], references: [id], onDelete: Cascade)
+  type          String      // INWARD, OUTWARD_ISSUE, RETURN, ADJUSTMENT
+  quantity      Int
+  employeeId    String?
+  employee      Employee?   @relation(fields: [employeeId], references: [id])
+  assetId       String?
+  asset         Asset?      @relation(fields: [assetId], references: [id])
+  performedById String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+}
+
+model Notification {
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  type           String        // ASSET_ALLOCATED, ASSET_RETURNED, TICKET_UPDATE, WARRANTY_EXPIRING, AMC_EXPIRING, LICENSE_EXPIRING, LOW_STOCK, APPROVAL_PENDING, SYSTEM
+  title          String
+  message        String
+  link           String?
+  isRead         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+  username       String?
+  action         String        // CREATE, UPDATE, DELETE, ALLOCATE, RETURN, TRANSFER, LOGIN, LOGOUT, EXPORT, IMPORT, SETTINGS_CHANGE
+  entity         String        // Asset, User, Employee, Ticket, License, etc.
+  entityId       String?
+  oldValues      String?       // JSON string
+  newValues      String?       // JSON string
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+}
+
+model SystemSetting {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  key            String        @unique
+  value          String        // Value (string, number, or JSON string)
+  group          String        // BRANDING, ASSET_NUMBERING, BARCODE, EMAIL, SLA, SECURITY, BACKUP
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  entityType   String   // ASSET, TICKET, MAINTENANCE, HANDOVER, VENDOR, RETURN
+  entityId     String
+  fileName     String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  filePath     String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+}

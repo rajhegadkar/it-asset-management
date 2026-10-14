@@ -1,0 +1,24 @@
+{
+  "name": "it-asset-management-suite",
+  "version": "1.0.0",
+  "description": "Enterprise IT Asset Management Platform (Release v1.0.0)",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "setup": "npm run install:all && npm run prisma:push && npm run prisma:seed",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "start": "npm --prefix backend start",
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "npm --prefix frontend run dev",
+    "prisma:generate": "npm --prefix backend run prisma:generate",
+    "prisma:push": "npm --prefix backend run prisma:push",
+    "prisma:seed": "npm --prefix backend run prisma:seed",
+    "test:unit": "npm --prefix backend test",
+    "test:e2e": "node test-all-logins.js",
+    "test": "npm run test:unit"
+  }
+}

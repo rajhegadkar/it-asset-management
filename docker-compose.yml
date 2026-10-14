@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # Enterprise Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: itam-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-itam_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # In-Memory Cache & Message Broker (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: itam-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ITAM Unified Application (Backend API + Built React Frontend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: itam-app
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_secure_2026}@postgres:5432/${POSTGRES_DB:-itam_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-production_secure_jwt_secret_change_me_9921}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-production_secure_refresh_jwt_secret_9921}
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5000,http://localhost:80}
+      STORAGE_TYPE: local
+      UPLOAD_DIR: ./uploads
+      SMTP_HOST: ${SMTP_HOST:-smtp.company.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-IT Asset Management <noreply@company.com>}
+    ports:
+      - "5000:5000"
+    volumes:
+      - itam_uploads:/app/backend/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/v1/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # High-Performance Nginx Reverse Proxy & SSL Gateway
+  nginx:
+    image: nginx:alpine
+    container_name: itam-nginx
+    restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - itam_uploads:/var/www/uploads:ro
+
+volumes:
+  postgres_data:
+  redis_data:
+  itam_uploads:
