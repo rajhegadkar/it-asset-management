@@ -28,18 +28,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('itam_access_token');
-    const savedUser = localStorage.getItem('itam_user');
+    const initAuth = async () => {
+      const savedToken = localStorage.getItem('itam_access_token');
+      const savedUser = localStorage.getItem('itam_user');
 
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('itam_user');
+      if (savedToken) {
+        setToken(savedToken);
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch {
+            localStorage.removeItem('itam_user');
+          }
+        }
+
+        try {
+          const res = await api.get('/auth/profile');
+          if (res.data?.success && res.data?.data) {
+            setUser(res.data.data);
+            localStorage.setItem('itam_user', JSON.stringify(res.data.data));
+          }
+        } catch (err: any) {
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            setToken(null);
+            setUser(null);
+            localStorage.removeItem('itam_access_token');
+            localStorage.removeItem('itam_user');
+          }
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = (newToken: string, userData: User) => {

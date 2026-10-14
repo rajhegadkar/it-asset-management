@@ -139,7 +139,9 @@ export const Layout: React.FC = () => {
       const res = await api.get('/system/notifications');
       setNotifications(res.data.data.notifications || []);
       setUnreadCount(res.data.data.unreadCount || 0);
-    } catch (e) {}
+    } catch (e) {
+      console.debug('Notification polling notice:', e);
+    }
   };
 
   useEffect(() => {

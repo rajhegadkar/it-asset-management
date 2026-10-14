@@ -21,6 +21,7 @@ import {
   X,
   Eye,
 } from 'lucide-react';
+import { useToast } from '../context/ToastContext.js';
 
 const COMMON_ACCESSORIES = [
   'Original Laptop Charger',
@@ -34,6 +35,7 @@ const COMMON_ACCESSORIES = [
 
 export const AllocationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const { showSuccess, showError } = useToast();
 
   const [assignments, setAssignments] = useState<AssetAssignment[]>([]);
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
@@ -121,9 +123,10 @@ export const AllocationPage: React.FC = () => {
     try {
       await api.post('/allocations/allocate', allocForm);
       setAllocateModalOpen(false);
+      showSuccess('Asset allocated successfully');
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to allocate asset');
+      showError(err.response?.data?.message || 'Failed to allocate asset');
     }
   };
 
@@ -132,9 +135,10 @@ export const AllocationPage: React.FC = () => {
     try {
       await api.post('/allocations/return', returnForm);
       setReturnModalOpen(false);
+      showSuccess('Asset returned successfully');
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to return asset');
+      showError(err.response?.data?.message || 'Failed to return asset');
     }
   };
 
@@ -143,9 +147,10 @@ export const AllocationPage: React.FC = () => {
     try {
       await api.post('/allocations/transfer', transferForm);
       setTransferModalOpen(false);
+      showSuccess('Asset transferred successfully');
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to transfer asset');
+      showError(err.response?.data?.message || 'Failed to transfer asset');
     }
   };
 
@@ -161,8 +166,9 @@ export const AllocationPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      showSuccess(`Handover certificate downloaded for ${assetTag}`);
     } catch {
-      alert('Failed to download certificate');
+      showError('Failed to download certificate');
     }
   };
 
@@ -294,6 +300,10 @@ export const AllocationPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="md:hidden flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
+          <span>Scroll right to see all columns</span>
+          <span>→</span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase tracking-wider font-semibold">

@@ -17,8 +17,10 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
+import { useToast } from '../context/ToastContext.js';
 
 export const SettingsPage: React.FC = () => {
+  const { showSuccess, showError, showWarning } = useToast();
   const { branding: globalBranding, updateBranding: updateBrandingContext, refreshBranding } = useBranding();
   const [activeTab, setActiveTab] = useState<'branding' | 'numbering' | 'email' | 'audit' | 'health'>('branding');
 
@@ -220,9 +222,10 @@ export const SettingsPage: React.FC = () => {
       // Re-sync BrandingContext so header, dashboard, sidebar, inventory all show updated company name and currency instantly
       await refreshBranding();
       setSaveSuccess(true);
+      showSuccess('Company branding settings saved successfully!');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
-      alert('Failed to save settings');
+      showError('Failed to save branding settings');
     }
   };
 
@@ -236,9 +239,10 @@ export const SettingsPage: React.FC = () => {
         { key: 'barcode.type', value: numbering.barcodeType, group: 'BARCODE' },
       ]);
       setSaveSuccess(true);
+      showSuccess('Asset numbering rules saved successfully!');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
-      alert('Failed to save numbering settings');
+      showError('Failed to save numbering settings');
     }
   };
 
@@ -247,16 +251,17 @@ export const SettingsPage: React.FC = () => {
     try {
       await api.post('/system/email-settings', emailConfig);
       setSaveSuccess(true);
+      showSuccess('Email server settings saved successfully!');
       setTimeout(() => setSaveSuccess(false), 3000);
       fetchEmailSettings();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save email settings');
+      showError(err.response?.data?.message || 'Failed to save email settings');
     }
   };
 
   const handleSendTestEmail = async () => {
     if (!testRecipient) {
-      alert('Please enter a recipient email address for testing.');
+      showWarning('Please enter a recipient email address for testing.');
       return;
     }
     setTestLoading(true);
@@ -992,17 +997,32 @@ export const SettingsPage: React.FC = () => {
 
       {/* Tab: System Health & Engine */}
       {activeTab === 'health' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-6 max-w-2xl">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-            System Diagnostics & Engine Status
-          </h3>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-6 max-w-3xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                System Diagnostics & Engine Status
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Live backend health metrics, database connection pool, memory footprint, and cron tasks
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchHealth}
+              className="flex items-center space-x-1 px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
               <span className="text-slate-500 block">Overall Server Status</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm flex items-center space-x-1">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>ONLINE & OPERATIONAL</span>
+                <span>{healthStatus?.status === 'UP' ? 'ONLINE & OPERATIONAL' : 'DIAGNOSING'}</span>
               </span>
             </div>
 
@@ -1010,14 +1030,16 @@ export const SettingsPage: React.FC = () => {
               <span className="text-slate-500 block">Database Connectivity</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm flex items-center space-x-1">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>CONNECTED</span>
+                <span>{healthStatus?.database || 'CONNECTED'}</span>
               </span>
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
               <span className="text-slate-500 block">Background Job Scheduler</span>
               <span className="font-bold text-blue-600 dark:text-blue-400 text-sm">
-                Active Cron Engine
+                {healthStatus?.scheduler?.jobsCount !== undefined
+                  ? `${healthStatus.scheduler.jobsCount} Scheduled Tasks Active`
+                  : 'Active Cron Engine'}
               </span>
             </div>
 
@@ -1028,7 +1050,31 @@ export const SettingsPage: React.FC = () => {
                 <span>Enterprise Edition</span>
               </span>
             </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
+              <span className="text-slate-500 block">Memory Footprint (RSS / Heap)</span>
+              <span className="font-mono text-slate-800 dark:text-slate-200 text-sm font-semibold">
+                {healthStatus?.memoryUsage?.rss
+                  ? `${Math.round(healthStatus.memoryUsage.rss / 1024 / 1024)} MB RSS / ${Math.round(healthStatus.memoryUsage.heapUsed / 1024 / 1024)} MB Heap`
+                  : 'Normal / Optimized'}
+              </span>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
+              <span className="text-slate-500 block">Server Process Uptime</span>
+              <span className="font-mono text-slate-800 dark:text-slate-200 text-sm font-semibold">
+                {healthStatus?.uptime
+                  ? `${Math.floor(healthStatus.uptime / 3600)}h ${Math.floor((healthStatus.uptime % 3600) / 60)}m ${Math.floor(healthStatus.uptime % 60)}s`
+                  : 'Active'}
+              </span>
+            </div>
           </div>
+
+          {healthStatus?.timestamp && (
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 text-right">
+              Last probe telemetry: {new Date(healthStatus.timestamp).toLocaleString()}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -25,10 +25,12 @@ import {
   Edit2,
   Save,
 } from 'lucide-react';
+import { useToast } from '../context/ToastContext.js';
 
 export const AssetsPage: React.FC = () => {
   const navigate = useNavigate();
   const { branding, formatCurrency, formatDate } = useBranding();
+  const { showSuccess, showError } = useToast();
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,9 +144,10 @@ export const AssetsPage: React.FC = () => {
       });
       setCreateModalOpen(false);
       setCustomFields({});
+      showSuccess('Asset created successfully');
       fetchAssets();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create asset');
+      showError(err.response?.data?.message || 'Failed to create asset');
     }
   };
 
@@ -187,9 +190,10 @@ export const AssetsPage: React.FC = () => {
         customFields: editCustomFields,
       });
       setEditModalOpen(false);
+      showSuccess('Asset updated successfully');
       fetchAssets();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update asset');
+      showError(err.response?.data?.message || 'Failed to update asset');
     } finally {
       setEditSaving(false);
     }
@@ -209,8 +213,9 @@ export const AssetsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      showSuccess(`Barcode label downloaded for ${assetTag}`);
     } catch {
-      alert('Failed to generate label');
+      showError('Failed to generate label');
     }
   };
 
@@ -226,8 +231,9 @@ export const AssetsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      showSuccess(`Assets exported as ${format.toUpperCase()}`);
     } catch {
-      alert('Failed to export assets data');
+      showError('Failed to export assets data');
     }
   };
 

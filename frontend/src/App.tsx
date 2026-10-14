@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.js';
 import { ThemeProvider } from './context/ThemeContext.js';
+import { ToastProvider } from './context/ToastContext.js';
 import { BrandingProvider } from './customization/BrandingContext.js';
 import { Layout } from './components/Layout.js';
 import { LoginPage } from './pages/LoginPage.js';
@@ -57,8 +58,9 @@ export const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <BrandingProvider>
-          <BrowserRouter>
-          <Routes>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
             <Route path="/login" element={<LoginPage />} />
 
             <Route
@@ -161,11 +163,12 @@ export const App: React.FC = () => {
               <Route path="portal/my-assets" element={<EmployeePortalPage />} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-        </BrandingProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  );
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </BrandingProvider>
+    </AuthProvider>
+  </ThemeProvider>
+);
 };

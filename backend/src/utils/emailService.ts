@@ -76,7 +76,7 @@ export class EmailService {
         smtpSecure: map.get('email.smtp_secure') === 'true' || (map.has('email.smtp_secure') ? false : env.SMTP_SECURE),
         smtpUser: map.get('email.smtp_user') || env.SMTP_USER || '',
         smtpPass: map.get('email.smtp_pass') || env.SMTP_PASS || '',
-        fromName: map.get('email.from_name') || 'IT Asset Management v2.0',
+        fromName: map.get('email.from_name') || 'IT Asset Management v1.0',
         fromEmail: map.get('email.from_email') || env.SMTP_FROM || 'noreply@itam.local',
         enableTls: map.get('email.enable_tls') !== 'false',
         notificationsEnabled: map.get('email.notifications_enabled') !== 'false',
@@ -99,7 +99,7 @@ export class EmailService {
         smtpSecure: env.SMTP_SECURE,
         smtpUser: env.SMTP_USER || '',
         smtpPass: env.SMTP_PASS || '',
-        fromName: 'IT Asset Management v2.0',
+        fromName: 'IT Asset Management v1.0',
         fromEmail: env.SMTP_FROM || 'noreply@itam.local',
         enableTls: true,
         notificationsEnabled: true,
@@ -275,7 +275,7 @@ export class EmailService {
         'Email Notification System Test Successful',
         `
           <p>Hello,</p>
-          <p>This is a confirmation that your <strong>IT Asset Management v2.0</strong> email notification service is properly configured and communicating with your mail provider.</p>
+          <p>This is a confirmation that your <strong>IT Asset Management v1.0</strong> email notification service is properly configured and communicating with your mail provider.</p>
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
             <tr style="border-bottom: 1px solid #e2e8f0;">
               <td style="padding: 8px 0; color: #64748b; width: 140px;">Mail Provider:</td>
@@ -306,9 +306,9 @@ export class EmailService {
       await testTransporter.sendMail({
         from: fromHeader,
         to: recipientEmail,
-        subject: `[TEST SUCCESS] ITAM v2.0 Email Service Active (${providerLabel})`,
+        subject: `[TEST SUCCESS] ITAM v1.0 Email Service Active (${providerLabel})`,
         html: testHtml,
-        text: `ITAM v2.0 Email Test Successful. Dispatched via ${providerLabel} to ${recipientEmail}.`,
+        text: `ITAM v1.0 Email Test Successful. Dispatched via ${providerLabel} to ${recipientEmail}.`,
       });
 
       return {
@@ -363,7 +363,7 @@ export class EmailService {
         <div class="container">
           <div class="header">
             <h1>${companyName}</h1>
-            <span class="badge">ENTERPRISE ITAM v2.0</span>
+            <span class="badge">ENTERPRISE ITAM v1.0</span>
           </div>
           <div class="content">
             <h2>${title}</h2>
