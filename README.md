@@ -8,6 +8,8 @@
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748.svg?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-58%2F58%20Passing%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhegadkar/it-asset-management)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template?template=https://github.com/rajhegadkar/it-asset-management)
 
 A **production-ready, enterprise-grade IT Asset Management (ITAM) platform** engineered for corporate IT departments, Managed Service Providers (MSPs), educational institutions, healthcare networks, and data center operations.
 
@@ -696,6 +698,8 @@ it-asset-management/
 
 Comprehensive guides for every aspect of the platform are located in the [`docs/`](docs/) directory:
 
+- 📋 [**Standard Operating Procedure (SOP: 10 Operational Procedures)**](docs/SOP_ITAM_OPERATION.md)
+- ☁️ [**Cloud Deployment Guide (Render, Railway, Fly.io, Docker)**](docs/CLOUD_DEPLOYMENT.md)
 - 📐 [**System Architecture & Design Decisions**](docs/ARCHITECTURE.md)
 - 🗄️ [**Database Schema & ERD**](docs/DATABASE_ERD.md)
 - 📡 [**REST API Documentation (Swagger & OpenAPI)**](docs/API_DOCUMENTATION.md)

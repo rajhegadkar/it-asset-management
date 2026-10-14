@@ -15,7 +15,8 @@ COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
 # Copy Postgres schema to default prisma schema for production
-RUN cp prisma/schema.postgresql.prisma prisma/schema.prisma
+ARG DB_TYPE=postgres
+RUN if [ "$DB_TYPE" = "postgres" ]; then cp prisma/schema.postgresql.prisma prisma/schema.prisma; fi
 RUN npx prisma generate
 RUN npm run build
 
@@ -48,4 +49,4 @@ RUN mkdir -p /app/backend/uploads && chown -R node:node /app
 USER node
 EXPOSE 5000
 
-CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.postgresql.prisma && node dist/server.js"]
+CMD ["sh", "-c", "npx prisma db push && node dist/server.js"]
