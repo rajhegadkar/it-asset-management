@@ -8,8 +8,16 @@
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748.svg?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-58%2F58%20Passing%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7.svg?style=flat-square&logo=render)](https://it-asset-management-q6ey.onrender.com/)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhegadkar/it-asset-management)
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template?template=https://github.com/rajhegadkar/it-asset-management)
+
+> 🌐 **Live Cloud Demo:** [https://it-asset-management-q6ey.onrender.com/](https://it-asset-management-q6ey.onrender.com/)  
+> Experience the full platform live in your browser:  
+> • **Super Administrator:** `admin@acme-corp.com` | **Password:** `Admin@123456`  
+> • **IT Administrator:** `itadmin@acme-corp.com` | **Password:** `Admin@123456`  
+> • **Support Engineer:** `support@acme-corp.com` | **Password:** `Admin@123456`  
+> • **Employee Self-Service:** `john.doe@acme-corp.com` | **Password:** `User@123456`
 
 A **production-ready, enterprise-grade IT Asset Management (ITAM) platform** engineered for corporate IT departments, Managed Service Providers (MSPs), educational institutions, healthcare networks, and data center operations.
 

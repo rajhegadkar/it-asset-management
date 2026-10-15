@@ -10,6 +10,8 @@ This guide provides step-by-step instructions for publishing and running the **E
 
 Render provides free hosting for full-stack Node.js applications with automatic SSL, custom domains, and zero-downtime deploys.
 
+🌐 **Official Live Demo:** [https://it-asset-management-q6ey.onrender.com/](https://it-asset-management-q6ey.onrender.com/)
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhegadkar/it-asset-management)
 
 #### Step-by-Step Instructions:
@@ -107,9 +109,9 @@ The platform seeds sample data and administrative accounts upon initial launch:
 
 | Role | Username / Email | Password |
 |---|---|---|
-| **Super Admin** | `admin@acme-corp.com` | `admin123` |
-| **IT Admin** | `itadmin@acme-corp.com` | `admin123` |
-| **Support Engineer** | `support@acme-corp.com` | `admin123` |
-| **Employee Self-Service** | `john.doe@acme-corp.com` | `admin123` |
+| **Super Admin** | `admin@acme-corp.com` | `Admin@123456` |
+| **IT Admin** | `itadmin@acme-corp.com` | `Admin@123456` |
+| **Support Engineer** | `support@acme-corp.com` | `Admin@123456` |
+| **Employee Self-Service** | `john.doe@acme-corp.com` | `User@123456` |
 
 > **Security Note:** Upon initial login, change default passwords under **User Management** and rotate `JWT_SECRET` in production environment settings.
