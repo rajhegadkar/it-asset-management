@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "description": "Production-grade enterprise IT Asset Management API (Release v1.0.0)",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
+    "prisma:push": "prisma db push --accept-data-loss",
     "prisma:seed": "tsx prisma/seed.ts",
     "test": "jest --runInBand",
     "lint": "eslint src --ext .ts"
@@ -30,8 +33,11 @@
     "nodemailer": "^6.10.0",
     "otplib": "^12.0.1",
     "pdfkit": "^0.16.0",
+    "prisma": "^5.22.0",
     "qrcode": "^1.5.4",
     "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
     "winston": "^3.17.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
@@ -51,10 +57,7 @@
     "@types/supertest": "^6.0.2",
     "@types/swagger-ui-express": "^4.1.7",
     "jest": "^29.7.0",
-    "prisma": "^5.22.0",
     "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "ts-jest": "^29.2.5"
   }
 }

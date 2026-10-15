@@ -3,15 +3,22 @@
   "version": "1.0.0",
   "description": "Enterprise IT Asset Management Platform (Release v1.0.0)",
   "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "install:all": "npm --prefix backend install && npm --prefix frontend install",
     "setup": "npm run install:all && npm run prisma:push && npm run prisma:seed",
-    "setup:prod": "npm run install:all && npm run build && npm run prisma:push && npm run prisma:seed",
+    "setup:prod": "npm run install:all && npm run build:backend && npm run build:frontend && npm run prisma:push && npm run prisma:seed",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "build": "npm run build:backend && npm run build:frontend",
+    "build": "npm run install:all && npm run build:backend && npm run build:frontend && npm run prisma:push && npm run prisma:seed",
     "start": "npm --prefix backend start",
     "start:prod": "npm --prefix backend start",
     "start:backend": "npm --prefix backend start",

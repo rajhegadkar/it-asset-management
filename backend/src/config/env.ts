@@ -1,12 +1,31 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
+import fs from 'fs';
+
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+function resolveDatabaseUrl(): string {
+  const raw = process.env.DATABASE_URL || 'file:./dev.db';
+  if (raw.startsWith('file:')) {
+    const rawPath = raw.slice(5);
+    if (!path.isAbsolute(rawPath)) {
+      const filename = path.basename(rawPath);
+      const inPrisma = path.resolve(__dirname, '../../prisma', filename);
+      const inCwd = path.resolve(process.cwd(), rawPath);
+      const selected = fs.existsSync(inPrisma) ? inPrisma : (fs.existsSync(inCwd) ? inCwd : inPrisma);
+      const finalUrl = `file:${selected.replace(/\\/g, '/')}`;
+      process.env.DATABASE_URL = finalUrl;
+      return finalUrl;
+    }
+  }
+  return raw;
+}
 
 export const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT || '5000', 10),
-  DATABASE_URL: process.env.DATABASE_URL || 'file:./dev.db',
+  DATABASE_URL: resolveDatabaseUrl(),
   JWT_SECRET: process.env.JWT_SECRET || 'dev_secret_jwt_key_itam_2026',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'dev_secret_refresh_key_itam_2026',
