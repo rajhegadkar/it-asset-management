@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { SoftwareLicense, Employee, Vendor } from '../types/index.js';
 import { Modal } from '../components/Modal.js';
-import { KeyRound, Plus, RefreshCw, Users, ShieldAlert, CheckCircle2, UserPlus, X } from 'lucide-react';
+import { KeyRound, Plus, RefreshCw, Users, ShieldAlert, CheckCircle2, UserPlus, X, Edit2, Trash2 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
 
 export const LicensesPage: React.FC = () => {
@@ -16,6 +16,8 @@ export const LicensesPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedLicense, setSelectedLicense] = useState<SoftwareLicense | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingLicense, setEditingLicense] = useState<SoftwareLicense | null>(null);
 
   const [licenseForm, setLicenseForm] = useState({
     softwareName: '',
@@ -27,6 +29,19 @@ export const LicensesPage: React.FC = () => {
     cost: '',
     expiryDate: '',
     vendorId: '',
+  });
+
+  const [editLicenseForm, setEditLicenseForm] = useState({
+    softwareName: '',
+    publisher: '',
+    version: '',
+    licenseType: 'PER_USER',
+    licenseKey: '',
+    quantityPurchased: 10,
+    cost: '',
+    expiryDate: '',
+    vendorId: '',
+    notes: '',
   });
 
   const [assignForm, setAssignForm] = useState({
@@ -102,6 +117,54 @@ export const LicensesPage: React.FC = () => {
     }
   };
 
+  const handleOpenEditLicense = (lic: SoftwareLicense) => {
+    setEditingLicense(lic);
+    setEditLicenseForm({
+      softwareName: lic.softwareName,
+      publisher: lic.publisher,
+      version: lic.version || '',
+      licenseType: lic.licenseType,
+      licenseKey: lic.licenseKey || '',
+      quantityPurchased: lic.quantityPurchased,
+      cost: lic.cost ? String(lic.cost) : '',
+      expiryDate: lic.expiryDate ? lic.expiryDate.split('T')[0] : '',
+      vendorId: lic.vendorId || lic.vendor?.id || '',
+      notes: lic.notes || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLicense) return;
+    try {
+      await api.put(`/licenses/${editingLicense.id}`, {
+        ...editLicenseForm,
+        quantityPurchased: Number(editLicenseForm.quantityPurchased),
+        cost: editLicenseForm.cost ? parseFloat(editLicenseForm.cost) : 0,
+      });
+      setEditModalOpen(false);
+      setEditingLicense(null);
+      fetchLicenses();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update license');
+    }
+  };
+
+  const handleDeleteLicense = async (lic: SoftwareLicense) => {
+    if ((lic.assignments || []).length > 0) {
+      if (!confirm(`Warning: License "${lic.softwareName}" has ${lic.assignments?.length} active assigned seats. Deleting will revoke all assignments. Proceed?`)) return;
+    } else {
+      if (!confirm(`Are you sure you want to delete license "${lic.softwareName}"?`)) return;
+    }
+    try {
+      await api.delete(`/licenses/${lic.id}`);
+      fetchLicenses();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete license');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -158,8 +221,24 @@ export const LicensesPage: React.FC = () => {
                         {lic.publisher} • {lic.version || 'Latest'}
                       </p>
                     </div>
-                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                      <KeyRound className="w-5 h-5" />
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        onClick={() => handleOpenEditLicense(lic)}
+                        className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="Edit License"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLicense(lic)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="Delete License"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
 
@@ -441,6 +520,183 @@ export const LicensesPage: React.FC = () => {
           </form>
         </Modal>
       )}
+
+      {/* Edit License Modal */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingLicense(null);
+        }}
+        title={`Edit Software License - ${editingLicense?.softwareName || ''}`}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleUpdateLicense} className="space-y-4">
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Software / Product Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editLicenseForm.softwareName}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, softwareName: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Publisher / Vendor *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editLicenseForm.publisher}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, publisher: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Software Version / Edition
+                </label>
+                <input
+                  type="text"
+                  value={editLicenseForm.version}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, version: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  License Model *
+                </label>
+                <select
+                  value={editLicenseForm.licenseType}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, licenseType: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="PER_USER">Per User (Named Seat)</option>
+                  <option value="PER_DEVICE">Per Device (Node-Locked)</option>
+                  <option value="SUBSCRIPTION">SaaS Subscription</option>
+                  <option value="PERPETUAL">Perpetual (One-Time)</option>
+                  <option value="CONCURRENT">Concurrent Network Floating</option>
+                  <option value="ENTERPRISE">Enterprise Site License</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                License Key / Activation Serial
+              </label>
+              <input
+                type="text"
+                value={editLicenseForm.licenseKey}
+                onChange={(e) => setEditLicenseForm({ ...editLicenseForm, licenseKey: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Total Seats Purchased *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={editLicenseForm.quantityPurchased}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, quantityPurchased: parseInt(e.target.value) || 1 })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Total Cost ({branding.currencySymbol})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editLicenseForm.cost}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, cost: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Expiration / Renewal
+                </label>
+                <input
+                  type="date"
+                  value={editLicenseForm.expiryDate}
+                  onChange={(e) => setEditLicenseForm({ ...editLicenseForm, expiryDate: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Authorized Reseller / Vendor
+              </label>
+              <select
+                value={editLicenseForm.vendorId}
+                onChange={(e) => setEditLicenseForm({ ...editLicenseForm, vendorId: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              >
+                <option value="">-- Direct from Publisher --</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Internal Contract Notes
+              </label>
+              <textarea
+                rows={2}
+                value={editLicenseForm.notes}
+                onChange={(e) => setEditLicenseForm({ ...editLicenseForm, notes: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setEditModalOpen(false);
+                setEditingLicense(null);
+              }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+            >
+              Update License
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

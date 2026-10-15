@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { Consumable, Employee } from '../types/index.js';
 import { Modal } from '../components/Modal.js';
-import { PackageCheck, Plus, RefreshCw, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { PackageCheck, Plus, RefreshCw, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, Edit2, Trash2 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
 
 export const ConsumablesPage: React.FC = () => {
@@ -17,9 +17,20 @@ export const ConsumablesPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [selectedConsumable, setSelectedConsumable] = useState<Consumable | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingConsumable, setEditingConsumable] = useState<Consumable | null>(null);
 
   // Forms state
   const [createForm, setCreateForm] = useState({
+    name: '',
+    category: 'RAM',
+    itemCode: '',
+    stockQuantity: 10,
+    minQuantity: 5,
+    unitCost: '',
+  });
+
+  const [editForm, setEditForm] = useState({
     name: '',
     category: 'RAM',
     itemCode: '',
@@ -93,6 +104,47 @@ export const ConsumablesPage: React.FC = () => {
       fetchConsumables();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Transaction failed');
+    }
+  };
+
+  const handleOpenEdit = (item: Consumable) => {
+    setEditingConsumable(item);
+    setEditForm({
+      name: item.name,
+      category: item.category,
+      itemCode: item.itemCode,
+      stockQuantity: item.stockQuantity,
+      minQuantity: item.minQuantity,
+      unitCost: item.unitCost ? String(item.unitCost) : '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateConsumable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingConsumable) return;
+    try {
+      await api.put(`/consumables/${editingConsumable.id}`, {
+        ...editForm,
+        stockQuantity: Number(editForm.stockQuantity),
+        minQuantity: Number(editForm.minQuantity),
+        unitCost: editForm.unitCost ? parseFloat(editForm.unitCost) : 0,
+      });
+      setEditModalOpen(false);
+      setEditingConsumable(null);
+      fetchConsumables();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update consumable');
+    }
+  };
+
+  const handleDeleteConsumable = async (item: Consumable) => {
+    if (!confirm(`Are you sure you want to delete spare part "${item.name}" (${item.itemCode})?`)) return;
+    try {
+      await api.delete(`/consumables/${item.id}`);
+      fetchConsumables();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete consumable');
     }
   };
 
@@ -222,7 +274,7 @@ export const ConsumablesPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                         <button
                           onClick={() => {
                             setSelectedConsumable(item);
@@ -231,6 +283,20 @@ export const ConsumablesPage: React.FC = () => {
                           className="px-2.5 py-1 text-xs font-semibold bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white rounded shadow-sm"
                         >
                           Issue / Restock
+                        </button>
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 inline-block align-middle"
+                          title="Edit Consumable"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteConsumable(item)}
+                          className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 inline-block align-middle"
+                          title="Delete Consumable"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -461,6 +527,131 @@ export const ConsumablesPage: React.FC = () => {
           </form>
         </Modal>
       )}
+
+      {/* Edit Consumable Modal */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingConsumable(null);
+        }}
+        title={`Edit Spare Part - ${editingConsumable?.name || ''}`}
+        maxWidth="md"
+      >
+        <form onSubmit={handleUpdateConsumable} className="space-y-4">
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Item Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Item Code *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.itemCode}
+                  onChange={(e) => setEditForm({ ...editForm, itemCode: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Category *
+                </label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="RAM">RAM / Memory</option>
+                  <option value="SSD">SSD / NVMe</option>
+                  <option value="CHARGER">Chargers / Adapters</option>
+                  <option value="CABLE">Cables / Patch Leads</option>
+                  <option value="TONER">Toner / Cartridges</option>
+                  <option value="KEYBOARD">Keyboards & Mice</option>
+                  <option value="BATTERY">Laptop Battery</option>
+                  <option value="OTHER">Other Peripherals</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Stock Units *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={editForm.stockQuantity}
+                  onChange={(e) => setEditForm({ ...editForm, stockQuantity: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Min Threshold
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={editForm.minQuantity}
+                  onChange={(e) => setEditForm({ ...editForm, minQuantity: parseInt(e.target.value) || 1 })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Unit Cost ({branding.currencySymbol})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.unitCost}
+                  onChange={(e) => setEditForm({ ...editForm, unitCost: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setEditModalOpen(false);
+                setEditingConsumable(null);
+              }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+            >
+              Update Item
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

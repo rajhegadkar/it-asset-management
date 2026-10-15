@@ -203,10 +203,10 @@ export const Layout: React.FC = () => {
             )}
             <div className="min-w-0">
               <span className="font-bold tracking-tight text-white block text-sm leading-tight truncate">
-                {branding.portalTitle || 'IT Asset Manager'}
+                {branding.companyName || branding.portalTitle || 'IT Asset Manager'}
               </span>
               <span className="text-[10px] text-blue-400 font-mono tracking-wider font-semibold">
-                v3.0 ENTERPRISE
+                v1.0.0 ENTERPRISE
               </span>
             </div>
           </Link>

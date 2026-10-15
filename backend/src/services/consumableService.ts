@@ -117,4 +117,34 @@ export class ConsumableService {
 
     return transaction;
   }
+
+  static async getConsumableById(id: string) {
+    const item = await prisma.consumable.findUnique({
+      where: { id },
+      include: { location: true, vendor: true, transactions: true },
+    });
+    if (!item) throw { statusCode: 404, message: 'Consumable item not found' };
+    return item;
+  }
+
+  static async updateConsumable(id: string, input: Partial<CreateConsumableInput>) {
+    const data: any = { ...input };
+    if (input.stockQuantity !== undefined) data.stockQuantity = Number(input.stockQuantity);
+    if (input.minQuantity !== undefined) data.minQuantity = Number(input.minQuantity);
+    if (input.maxQuantity !== undefined) data.maxQuantity = Number(input.maxQuantity);
+    if (input.unitCost !== undefined) data.unitCost = Number(input.unitCost);
+
+    return await prisma.consumable.update({
+      where: { id },
+      data,
+      include: { location: true, vendor: true },
+    });
+  }
+
+  static async deleteConsumable(id: string) {
+    await prisma.consumableTransaction.deleteMany({ where: { consumableId: id } });
+    return await prisma.consumable.delete({
+      where: { id },
+    });
+  }
 }

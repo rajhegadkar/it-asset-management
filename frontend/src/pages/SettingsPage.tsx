@@ -15,14 +15,27 @@ import {
   Check,
   Server,
   FileCheck,
+  Database,
+  Plus,
+  Edit2,
+  Trash2,
+  MapPin,
+  Layers,
+  Building2,
+  Tag,
+  Truck,
+  X,
 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
 import { useToast } from '../context/ToastContext.js';
+import { useAuth } from '../context/AuthContext.js';
+import { Modal } from '../components/Modal.js';
 
 export const SettingsPage: React.FC = () => {
   const { showSuccess, showError, showWarning } = useToast();
+  const { updateUserOrganization } = useAuth();
   const { branding: globalBranding, updateBranding: updateBrandingContext, refreshBranding } = useBranding();
-  const [activeTab, setActiveTab] = useState<'branding' | 'numbering' | 'email' | 'audit' | 'health'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'numbering' | 'email' | 'masterData' | 'audit' | 'health'>('branding');
 
   // Branding Form
   const [branding, setBranding] = useState({
@@ -73,13 +86,184 @@ export const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Master Data State
+  const [masterSubTab, setMasterSubTab] = useState<'departments' | 'locations' | 'categories' | 'vendors'>('departments');
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [masterLoading, setMasterLoading] = useState(false);
+
+  // Master Data Modals
+  const [masterModalType, setMasterModalType] = useState<'dept' | 'loc' | 'cat' | 'vnd' | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [deptForm, setDeptForm] = useState({ name: '', code: '', departmentHead: '', costCenter: '' });
+  const [locForm, setLocForm] = useState({ name: '', code: '', type: 'OFFICE', address: '' });
+  const [catForm, setCatForm] = useState({ name: '', code: '', description: '' });
+  const [vndForm, setVndForm] = useState({ name: '', code: '', contactPerson: '', email: '', phone: '', website: '' });
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await api.get('/org/departments');
+      setDepartments(res.data.data || []);
+    } catch {}
+  };
+  const fetchLocations = async () => {
+    try {
+      const res = await api.get('/org/locations');
+      setLocations(res.data.data || []);
+    } catch {}
+  };
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/org/categories');
+      setCategories(res.data.data || []);
+    } catch {}
+  };
+  const fetchVendors = async () => {
+    try {
+      const res = await api.get('/org/vendors');
+      setVendors(res.data.data || []);
+    } catch {}
+  };
+  const fetchAllMasterData = async () => {
+    setMasterLoading(true);
+    await Promise.all([fetchDepartments(), fetchLocations(), fetchCategories(), fetchVendors()]);
+    setMasterLoading(false);
+  };
+
+  const handleSaveDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingItem) {
+        await api.put(`/org/departments/${editingItem.id}`, deptForm);
+        showSuccess('Department updated successfully');
+      } else {
+        await api.post('/org/departments', deptForm);
+        showSuccess('Department created successfully');
+      }
+      setMasterModalType(null);
+      setEditingItem(null);
+      fetchDepartments();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to save department');
+    }
+  };
+
+  const handleDeleteDept = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete department "${name}"?`)) return;
+    try {
+      await api.delete(`/org/departments/${id}`);
+      showSuccess(`Department "${name}" deleted`);
+      fetchDepartments();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to delete department');
+    }
+  };
+
+  const handleSaveLoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingItem) {
+        await api.put(`/org/locations/${editingItem.id}`, locForm);
+        showSuccess('Location updated successfully');
+      } else {
+        await api.post('/org/locations', locForm);
+        showSuccess('Location created successfully');
+      }
+      setMasterModalType(null);
+      setEditingItem(null);
+      fetchLocations();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to save location');
+    }
+  };
+
+  const handleDeleteLoc = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete location "${name}"?`)) return;
+    try {
+      await api.delete(`/org/locations/${id}`);
+      showSuccess(`Location "${name}" deleted`);
+      fetchLocations();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to delete location');
+    }
+  };
+
+  const handleSaveCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingItem) {
+        await api.put(`/org/categories/${editingItem.id}`, catForm);
+        showSuccess('Category updated successfully');
+      } else {
+        await api.post('/org/categories', catForm);
+        showSuccess('Category created successfully');
+      }
+      setMasterModalType(null);
+      setEditingItem(null);
+      fetchCategories();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to save category');
+    }
+  };
+
+  const handleDeleteCat = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    try {
+      await api.delete(`/org/categories/${id}`);
+      showSuccess(`Category "${name}" deleted`);
+      fetchCategories();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to delete category');
+    }
+  };
+
+  const handleSaveVnd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingItem) {
+        await api.put(`/org/vendors/${editingItem.id}`, vndForm);
+        showSuccess('Vendor updated successfully');
+      } else {
+        await api.post('/org/vendors', vndForm);
+        showSuccess('Vendor registered successfully');
+      }
+      setMasterModalType(null);
+      setEditingItem(null);
+      fetchVendors();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to save vendor');
+    }
+  };
+
+  const handleDeleteVnd = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete vendor "${name}"?`)) return;
+    try {
+      await api.delete(`/org/vendors/${id}`);
+      showSuccess(`Vendor "${name}" deleted`);
+      fetchVendors();
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Failed to delete vendor');
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       const res = await api.get('/system/settings');
       const settingsMap = new Map<string, string>(res.data.data.map((s: any) => [s.key, s.value]));
 
-      const resolvedCompany = settingsMap.get('company.name') || globalBranding.companyName || 'Acme Global Technologies Inc.';
-      const resolvedCurrency = settingsMap.get('company.currency') || globalBranding.currencyCode || 'USD';
+      let resolvedCompany = settingsMap.get('company.name') || globalBranding.companyName || 'Acme Global Technologies Inc.';
+      let resolvedCurrency = settingsMap.get('company.currency') || globalBranding.currencyCode || 'USD';
+
+      try {
+        const orgRes = await api.get('/org/organization');
+        if (orgRes.data?.data?.name) {
+          resolvedCompany = orgRes.data.data.name;
+          if (orgRes.data.data.currency) resolvedCurrency = orgRes.data.data.currency;
+        }
+      } catch {}
+
       setBranding((prev) => ({
         ...prev,
         companyName: resolvedCompany,
@@ -157,6 +341,7 @@ export const SettingsPage: React.FC = () => {
     if (activeTab === 'email') fetchEmailSettings();
     if (activeTab === 'audit') fetchAuditLogs();
     if (activeTab === 'health') fetchHealth();
+    if (activeTab === 'masterData') fetchAllMasterData();
   }, [activeTab]);
 
   const handleProviderSelect = (prov: 'google_workspace' | 'office_365' | 'custom') => {
@@ -206,23 +391,34 @@ export const SettingsPage: React.FC = () => {
       const curCode = branding.currency.trim().toUpperCase() || 'USD';
       const curSymbol = CURRENCY_SYMBOLS[curCode] || '$';
 
-      await api.put('/system/settings', [
-        { key: 'company.name', value: branding.companyName, group: 'BRANDING' },
-        { key: 'company.address', value: branding.address, group: 'BRANDING' },
-        { key: 'company.email', value: branding.email, group: 'BRANDING' },
-        { key: 'company.phone', value: branding.phone, group: 'BRANDING' },
-        { key: 'company.tax_id', value: branding.taxId, group: 'BRANDING' },
-        { key: 'company.currency', value: curCode, group: 'BRANDING' },
+      await Promise.all([
+        api.put('/system/settings', [
+          { key: 'company.name', value: branding.companyName, group: 'BRANDING' },
+          { key: 'company.address', value: branding.address, group: 'BRANDING' },
+          { key: 'company.email', value: branding.email, group: 'BRANDING' },
+          { key: 'company.phone', value: branding.phone, group: 'BRANDING' },
+          { key: 'company.tax_id', value: branding.taxId, group: 'BRANDING' },
+          { key: 'company.currency', value: curCode, group: 'BRANDING' },
+        ]),
+        api.put('/org/organization', {
+          name: branding.companyName,
+          address: branding.address,
+          email: branding.email,
+          phone: branding.phone,
+          taxId: branding.taxId,
+          currency: curCode,
+        }),
       ]);
+
       await updateBrandingContext({
         companyName: branding.companyName,
         currencyCode: curCode,
         currencySymbol: curSymbol,
       });
-      // Re-sync BrandingContext so header, dashboard, sidebar, inventory all show updated company name and currency instantly
+      updateUserOrganization(branding.companyName);
       await refreshBranding();
       setSaveSuccess(true);
-      showSuccess('Company branding settings saved successfully!');
+      showSuccess('Company branding & organization profile saved successfully!');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
       showError('Failed to save branding settings');
@@ -313,6 +509,7 @@ export const SettingsPage: React.FC = () => {
         <nav className="flex space-x-6 overflow-x-auto">
           {[
             { id: 'branding', label: 'Company & Branding', icon: Building },
+            { id: 'masterData', label: 'Organization & Master Data', icon: Building2 },
             { id: 'numbering', label: 'Asset Numbering & Barcodes', icon: Barcode },
             { id: 'email', label: 'Email Notifications (Google / Office 365)', icon: Mail },
             { id: 'audit', label: 'Immutable Audit Logs', icon: FileCheck },
@@ -455,6 +652,340 @@ export const SettingsPage: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Tab: Organization & Master Data */}
+      {activeTab === 'masterData' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
+                  <Database className="w-5 h-5 text-blue-600" />
+                  <span>Master Data Entities & Hierarchy</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage core corporate metadata including department structures, office locations, asset categories, and approved hardware vendors.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setEditingItem(null);
+                    if (masterSubTab === 'departments') {
+                      setDeptForm({ name: '', code: '', departmentHead: '', costCenter: '' });
+                      setMasterModalType('dept');
+                    } else if (masterSubTab === 'locations') {
+                      setLocForm({ name: '', code: '', type: 'OFFICE', address: '' });
+                      setMasterModalType('loc');
+                    } else if (masterSubTab === 'categories') {
+                      setCatForm({ name: '', code: '', description: '' });
+                      setMasterModalType('cat');
+                    } else if (masterSubTab === 'vendors') {
+                      setVndForm({ name: '', code: '', contactPerson: '', email: '', phone: '', website: '' });
+                      setMasterModalType('vnd');
+                    }
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    Add {masterSubTab === 'departments' ? 'Department' : masterSubTab === 'locations' ? 'Location' : masterSubTab === 'categories' ? 'Category' : 'Vendor'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-tab pills */}
+            <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+              {[
+                { id: 'departments', label: 'Departments', count: departments.length, icon: Building },
+                { id: 'locations', label: 'Locations', count: locations.length, icon: MapPin },
+                { id: 'categories', label: 'Asset Categories', count: categories.length, icon: Tag },
+                { id: 'vendors', label: 'Vendors & Suppliers', count: vendors.length, icon: Truck },
+              ].map((sub) => {
+                const Icon = sub.icon;
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setMasterSubTab(sub.id as any)}
+                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      masterSubTab === sub.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{sub.label}</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      masterSubTab === sub.id ? 'bg-blue-700 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}>
+                      {sub.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Content for Departments */}
+            {masterSubTab === 'departments' && (
+              <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Code</th>
+                      <th className="py-2.5 px-3">Department Name</th>
+                      <th className="py-2.5 px-3">Department Head</th>
+                      <th className="py-2.5 px-3">Cost Center</th>
+                      <th className="py-2.5 px-3">Assets</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {departments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400 italic">No departments configured</td>
+                      </tr>
+                    ) : (
+                      departments.map((d) => (
+                        <tr key={d.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{d.code}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">{d.name}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{d.departmentHead || '—'}</td>
+                          <td className="py-2.5 px-3 font-mono text-slate-500">{d.costCenter || '—'}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+                              {d._count?.assets || 0}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right space-x-1">
+                            <button
+                              onClick={() => {
+                                setEditingItem(d);
+                                setDeptForm({
+                                  name: d.name,
+                                  code: d.code,
+                                  departmentHead: d.departmentHead || '',
+                                  costCenter: d.costCenter || '',
+                                });
+                                setMasterModalType('dept');
+                              }}
+                              className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Edit Department"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDept(d.id, d.name)}
+                              className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Delete Department"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Content for Locations */}
+            {masterSubTab === 'locations' && (
+              <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Code</th>
+                      <th className="py-2.5 px-3">Location Name</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3">Address</th>
+                      <th className="py-2.5 px-3">Assets</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {locations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400 italic">No locations configured</td>
+                      </tr>
+                    ) : (
+                      locations.map((loc) => (
+                        <tr key={loc.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{loc.code}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">{loc.name}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{loc.type || 'OFFICE'}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{loc.address || '—'}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+                              {loc._count?.assets || 0}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right space-x-1">
+                            <button
+                              onClick={() => {
+                                setEditingItem(loc);
+                                setLocForm({
+                                  name: loc.name,
+                                  code: loc.code,
+                                  type: loc.type || 'OFFICE',
+                                  address: loc.address || '',
+                                });
+                                setMasterModalType('loc');
+                              }}
+                              className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Edit Location"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLoc(loc.id, loc.name)}
+                              className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Delete Location"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Content for Categories */}
+            {masterSubTab === 'categories' && (
+              <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Code</th>
+                      <th className="py-2.5 px-3">Category Name</th>
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3">Assets</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {categories.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400 italic">No categories configured</td>
+                      </tr>
+                    ) : (
+                      categories.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{c.code}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">{c.name}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{c.description || '—'}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+                              {c._count?.assets || 0}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right space-x-1">
+                            <button
+                              onClick={() => {
+                                setEditingItem(c);
+                                setCatForm({
+                                  name: c.name,
+                                  code: c.code,
+                                  description: c.description || '',
+                                });
+                                setMasterModalType('cat');
+                              }}
+                              className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Edit Category"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCat(c.id, c.name)}
+                              className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Delete Category"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Content for Vendors */}
+            {masterSubTab === 'vendors' && (
+              <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Code</th>
+                      <th className="py-2.5 px-3">Vendor Name</th>
+                      <th className="py-2.5 px-3">Contact Person</th>
+                      <th className="py-2.5 px-3">Email</th>
+                      <th className="py-2.5 px-3">Phone</th>
+                      <th className="py-2.5 px-3">Assets</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {vendors.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-slate-400 italic">No vendors configured</td>
+                      </tr>
+                    ) : (
+                      vendors.map((v) => (
+                        <tr key={v.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{v.code}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">{v.name}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{v.contactPerson || '—'}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{v.email || '—'}</td>
+                          <td className="py-2.5 px-3 text-slate-500">{v.phone || '—'}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+                              {v._count?.assets || 0}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right space-x-1">
+                            <button
+                              onClick={() => {
+                                setEditingItem(v);
+                                setVndForm({
+                                  name: v.name,
+                                  code: v.code,
+                                  contactPerson: v.contactPerson || '',
+                                  email: v.email || '',
+                                  phone: v.phone || '',
+                                  website: v.website || '',
+                                });
+                                setMasterModalType('vnd');
+                              }}
+                              className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Edit Vendor"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVnd(v.id, v.name)}
+                              className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                              title="Delete Vendor"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1077,6 +1608,372 @@ export const SettingsPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Modal: Department */}
+      <Modal
+        isOpen={masterModalType === 'dept'}
+        onClose={() => {
+          setMasterModalType(null);
+          setEditingItem(null);
+        }}
+        title={editingItem ? 'Edit Department' : 'Create New Department'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveDept} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Department Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={deptForm.name}
+              onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+              placeholder="e.g. Information Technology"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Department Code *
+            </label>
+            <input
+              type="text"
+              required
+              value={deptForm.code}
+              onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+              placeholder="e.g. IT"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono uppercase"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Department Head (Optional)
+            </label>
+            <input
+              type="text"
+              value={deptForm.departmentHead}
+              onChange={(e) => setDeptForm({ ...deptForm, departmentHead: e.target.value })}
+              placeholder="e.g. Sarah Connor"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Cost Center (Optional)
+            </label>
+            <input
+              type="text"
+              value={deptForm.costCenter}
+              onChange={(e) => setDeptForm({ ...deptForm, costCenter: e.target.value })}
+              placeholder="e.g. CC-101"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMasterModalType(null);
+                setEditingItem(null);
+              }}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            >
+              {editingItem ? 'Update Department' : 'Create Department'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Location */}
+      <Modal
+        isOpen={masterModalType === 'loc'}
+        onClose={() => {
+          setMasterModalType(null);
+          setEditingItem(null);
+        }}
+        title={editingItem ? 'Edit Location' : 'Register New Location'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveLoc} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Location Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={locForm.name}
+              onChange={(e) => setLocForm({ ...locForm, name: e.target.value })}
+              placeholder="e.g. San Francisco HQ"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Location Code *
+              </label>
+              <input
+                type="text"
+                required
+                value={locForm.code}
+                onChange={(e) => setLocForm({ ...locForm, code: e.target.value.toUpperCase() })}
+                placeholder="e.g. SF-HQ"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono uppercase"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Location Type
+              </label>
+              <select
+                value={locForm.type}
+                onChange={(e) => setLocForm({ ...locForm, type: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              >
+                <option value="OFFICE">Office</option>
+                <option value="DATA_CENTER">Data Center</option>
+                <option value="WAREHOUSE">Warehouse</option>
+                <option value="REMOTE">Remote Site</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Full Physical Address
+            </label>
+            <textarea
+              rows={2}
+              value={locForm.address}
+              onChange={(e) => setLocForm({ ...locForm, address: e.target.value })}
+              placeholder="e.g. 100 Innovation Blvd, Floor 5, San Francisco, CA"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMasterModalType(null);
+                setEditingItem(null);
+              }}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            >
+              {editingItem ? 'Update Location' : 'Create Location'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Category */}
+      <Modal
+        isOpen={masterModalType === 'cat'}
+        onClose={() => {
+          setMasterModalType(null);
+          setEditingItem(null);
+        }}
+        title={editingItem ? 'Edit Category' : 'Create Asset Category'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveCat} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Category Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={catForm.name}
+              onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+              placeholder="e.g. Laptops & Ultrabooks"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Category Code *
+            </label>
+            <input
+              type="text"
+              required
+              value={catForm.code}
+              onChange={(e) => setCatForm({ ...catForm, code: e.target.value.toUpperCase() })}
+              placeholder="e.g. LAPTOP"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono uppercase"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              rows={2}
+              value={catForm.description}
+              onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
+              placeholder="e.g. Portable computing hardware issued to staff"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMasterModalType(null);
+                setEditingItem(null);
+              }}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            >
+              {editingItem ? 'Update Category' : 'Create Category'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Vendor */}
+      <Modal
+        isOpen={masterModalType === 'vnd'}
+        onClose={() => {
+          setMasterModalType(null);
+          setEditingItem(null);
+        }}
+        title={editingItem ? 'Edit Vendor / Supplier' : 'Register New Vendor'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveVnd} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Vendor / Supplier Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={vndForm.name}
+              onChange={(e) => setVndForm({ ...vndForm, name: e.target.value })}
+              placeholder="e.g. Dell Enterprise Direct"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Vendor Code *
+              </label>
+              <input
+                type="text"
+                required
+                value={vndForm.code}
+                onChange={(e) => setVndForm({ ...vndForm, code: e.target.value.toUpperCase() })}
+                placeholder="e.g. DELL-CORP"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono uppercase"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Contact Person
+              </label>
+              <input
+                type="text"
+                value={vndForm.contactPerson}
+                onChange={(e) => setVndForm({ ...vndForm, contactPerson: e.target.value })}
+                placeholder="e.g. Michael Scott"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Support Email
+              </label>
+              <input
+                type="email"
+                value={vndForm.email}
+                onChange={(e) => setVndForm({ ...vndForm, email: e.target.value })}
+                placeholder="enterprise@dell.com"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Phone
+              </label>
+              <input
+                type="text"
+                value={vndForm.phone}
+                onChange={(e) => setVndForm({ ...vndForm, phone: e.target.value })}
+                placeholder="+1 800 555 0199"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Website / Portal URL
+            </label>
+            <input
+              type="text"
+              value={vndForm.website}
+              onChange={(e) => setVndForm({ ...vndForm, website: e.target.value })}
+              placeholder="https://www.dell.com/premier"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMasterModalType(null);
+                setEditingItem(null);
+              }}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            >
+              {editingItem ? 'Update Vendor' : 'Register Vendor'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

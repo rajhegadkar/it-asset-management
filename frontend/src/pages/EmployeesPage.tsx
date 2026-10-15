@@ -3,7 +3,7 @@ import { api } from '../api/client.js';
 import { Employee, Department, Location } from '../types/index.js';
 import { Modal } from '../components/Modal.js';
 import { ImportModal } from '../components/ImportModal.js';
-import { Users, Plus, Upload, Download, Search, RefreshCw, Mail, Phone, Laptop } from 'lucide-react';
+import { Users, Plus, Upload, Download, Search, RefreshCw, Mail, Phone, Laptop, Edit2, Trash2 } from 'lucide-react';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
 
 export const EmployeesPage: React.FC = () => {
@@ -16,6 +16,8 @@ export const EmployeesPage: React.FC = () => {
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   const [form, setForm] = useState({
     employeeId: '',
@@ -26,6 +28,18 @@ export const EmployeesPage: React.FC = () => {
     designation: '',
     departmentId: '',
     locationId: '',
+    costCenter: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    designation: '',
+    departmentId: '',
+    locationId: '',
+    employmentStatus: 'ACTIVE',
     costCenter: '',
   });
 
@@ -76,6 +90,49 @@ export const EmployeesPage: React.FC = () => {
       fetchEmployees();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to create employee');
+    }
+  };
+
+  const handleOpenEdit = (emp: Employee) => {
+    setEditingEmployee(emp);
+    setEditForm({
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      phone: emp.phone || '',
+      designation: emp.designation || '',
+      departmentId: emp.departmentId || '',
+      locationId: emp.locationId || '',
+      employmentStatus: emp.employmentStatus || 'ACTIVE',
+      costCenter: emp.costCenter || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployee) return;
+    try {
+      await api.put(`/employees/${editingEmployee.id}`, editForm);
+      setEditModalOpen(false);
+      setEditingEmployee(null);
+      fetchEmployees();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update employee');
+    }
+  };
+
+  const handleDeleteEmployee = async (emp: Employee) => {
+    if ((emp.assets || []).length > 0) {
+      alert(`Cannot delete employee "${emp.firstName} ${emp.lastName}" because they have ${emp.assets?.length} assigned assets. Please return or reallocate assets first.`);
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete employee "${emp.firstName} ${emp.lastName}" (${emp.employeeId})?`)) return;
+    try {
+      await api.delete(`/employees/${emp.id}`);
+      fetchEmployees();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete employee');
     }
   };
 
@@ -151,19 +208,20 @@ export const EmployeesPage: React.FC = () => {
                 <th className="py-3 px-4">Location</th>
                 <th className="py-3 px-4">Assigned Assets</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
                     <span>Loading employee directory...</span>
                   </td>
                 </tr>
               ) : employees.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
                     No employee records found.
                   </td>
                 </tr>
@@ -212,6 +270,22 @@ export const EmployeesPage: React.FC = () => {
                       <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-950 uppercase">
                         {emp.employmentStatus}
                       </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right space-x-1">
+                      <button
+                        onClick={() => handleOpenEdit(emp)}
+                        className="p-1 text-slate-500 hover:text-blue-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="Edit Employee"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEmployee(emp)}
+                        className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="Delete Employee"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -376,6 +450,176 @@ export const EmployeesPage: React.FC = () => {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
             >
               Save Employee
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Employee Modal */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingEmployee(null);
+        }}
+        title={`Edit Employee - ${editingEmployee?.employeeId || ''}`}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleUpdateEmployee} className="space-y-4">
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Designation / Role
+                </label>
+                <input
+                  type="text"
+                  value={editForm.designation}
+                  onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Employment Status
+                </label>
+                <select
+                  value={editForm.employmentStatus}
+                  onChange={(e) => setEditForm({ ...editForm, employmentStatus: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PROBATION">PROBATION</option>
+                  <option value="NOTICE_PERIOD">NOTICE PERIOD</option>
+                  <option value="TERMINATED">TERMINATED</option>
+                  <option value="RESIGNED">RESIGNED</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Department
+                </label>
+                <select
+                  value={editForm.departmentId}
+                  onChange={(e) => setEditForm({ ...editForm, departmentId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="">-- No Department --</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Office Location
+                </label>
+                <select
+                  value={editForm.locationId}
+                  onChange={(e) => setEditForm({ ...editForm, locationId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="">-- No Location --</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} ({l.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Cost Center
+              </label>
+              <input
+                type="text"
+                value={editForm.costCenter}
+                onChange={(e) => setEditForm({ ...editForm, costCenter: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setEditModalOpen(false);
+                setEditingEmployee(null);
+              }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+            >
+              Update Employee
             </button>
           </div>
         </form>

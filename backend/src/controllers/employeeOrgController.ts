@@ -47,9 +47,38 @@ export class EmployeeController {
       next(error);
     }
   }
+
+  static async deleteEmployee(req: Request, res: Response, next: NextFunction) {
+    try {
+      await EmployeeService.deleteEmployee(req.params.id);
+      return ApiResponse.success(res, null, 'Employee deleted successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export class OrgDataController {
+  // --- Organization ---
+  static async getOrganization(req: Request, res: Response, next: NextFunction) {
+    try {
+      const org = await DepartmentLocationVendorService.getOrganization();
+      return ApiResponse.success(res, org, 'Organization retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateOrganization(req: Request, res: Response, next: NextFunction) {
+    try {
+      const org = await DepartmentLocationVendorService.updateOrganization(req.body);
+      return ApiResponse.success(res, org, 'Organization updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // --- Departments ---
   static async getDepartments(req: Request, res: Response, next: NextFunction) {
     try {
       const depts = await DepartmentLocationVendorService.getDepartments();
@@ -68,6 +97,25 @@ export class OrgDataController {
     }
   }
 
+  static async updateDepartment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dept = await DepartmentLocationVendorService.updateDepartment(req.params.id, req.body);
+      return ApiResponse.success(res, dept, 'Department updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteDepartment(req: Request, res: Response, next: NextFunction) {
+    try {
+      await DepartmentLocationVendorService.deleteDepartment(req.params.id);
+      return ApiResponse.success(res, null, 'Department deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // --- Locations ---
   static async getLocations(req: Request, res: Response, next: NextFunction) {
     try {
       const locs = await DepartmentLocationVendorService.getLocations();
@@ -86,6 +134,25 @@ export class OrgDataController {
     }
   }
 
+  static async updateLocation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const loc = await DepartmentLocationVendorService.updateLocation(req.params.id, req.body);
+      return ApiResponse.success(res, loc, 'Location updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteLocation(req: Request, res: Response, next: NextFunction) {
+    try {
+      await DepartmentLocationVendorService.deleteLocation(req.params.id);
+      return ApiResponse.success(res, null, 'Location deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // --- Vendors ---
   static async getVendors(req: Request, res: Response, next: NextFunction) {
     try {
       const vendors = await DepartmentLocationVendorService.getVendors();
@@ -104,6 +171,25 @@ export class OrgDataController {
     }
   }
 
+  static async updateVendor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const vendor = await DepartmentLocationVendorService.updateVendor(req.params.id, req.body);
+      return ApiResponse.success(res, vendor, 'Vendor updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteVendor(req: Request, res: Response, next: NextFunction) {
+    try {
+      await DepartmentLocationVendorService.deleteVendor(req.params.id);
+      return ApiResponse.success(res, null, 'Vendor deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // --- Categories ---
   static async getCategories(req: Request, res: Response, next: NextFunction) {
     try {
       const cats = await DepartmentLocationVendorService.getCategories();
@@ -117,6 +203,24 @@ export class OrgDataController {
     try {
       const cat = await DepartmentLocationVendorService.createCategory(req.body);
       return ApiResponse.success(res, cat, 'Category created', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateCategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const cat = await DepartmentLocationVendorService.updateCategory(req.params.id, req.body);
+      return ApiResponse.success(res, cat, 'Category updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteCategory(req: Request, res: Response, next: NextFunction) {
+    try {
+      await DepartmentLocationVendorService.deleteCategory(req.params.id);
+      return ApiResponse.success(res, null, 'Category deleted');
     } catch (error) {
       next(error);
     }

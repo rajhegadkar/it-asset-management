@@ -28,6 +28,33 @@ export class LicenseController {
     }
   }
 
+  static async getLicenseById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const license = await LicenseService.getLicenseById(req.params.id);
+      return ApiResponse.success(res, license, 'License retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateLicense(req: Request, res: Response, next: NextFunction) {
+    try {
+      const updated = await LicenseService.updateLicense(req.params.id, req.body);
+      return ApiResponse.success(res, updated, 'License updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteLicense(req: Request, res: Response, next: NextFunction) {
+    try {
+      await LicenseService.deleteLicense(req.params.id);
+      return ApiResponse.success(res, null, 'License deleted successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async assignLicense(req: Request, res: Response, next: NextFunction) {
     try {
       const assignment = await LicenseService.assignLicense(req.params.id, req.body);
@@ -63,10 +90,37 @@ export class ConsumableController {
     }
   }
 
+  static async getConsumableById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const item = await ConsumableService.getConsumableById(req.params.id);
+      return ApiResponse.success(res, item, 'Consumable item retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async createConsumable(req: Request, res: Response, next: NextFunction) {
     try {
       const item = await ConsumableService.createConsumable(req.body);
       return ApiResponse.success(res, item, 'Consumable item created', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateConsumable(req: Request, res: Response, next: NextFunction) {
+    try {
+      const item = await ConsumableService.updateConsumable(req.params.id, req.body);
+      return ApiResponse.success(res, item, 'Consumable item updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteConsumable(req: Request, res: Response, next: NextFunction) {
+    try {
+      await ConsumableService.deleteConsumable(req.params.id);
+      return ApiResponse.success(res, null, 'Consumable item deleted');
     } catch (error) {
       next(error);
     }

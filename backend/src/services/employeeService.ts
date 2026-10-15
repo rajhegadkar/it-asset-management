@@ -146,4 +146,26 @@ export class EmployeeService {
       include: { department: true, location: true },
     });
   }
+
+  static async deleteEmployee(id: string) {
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: {
+        assets: { where: { isArchived: false } },
+      },
+    });
+    if (!employee) {
+      throw { statusCode: 404, message: 'Employee not found', code: 'EMPLOYEE_NOT_FOUND' };
+    }
+    if (employee.assets.length > 0) {
+      throw {
+        statusCode: 400,
+        message: `Cannot delete employee with ${employee.assets.length} active allocated assets. Please return or reallocate assets first.`,
+        code: 'EMPLOYEE_HAS_ASSETS',
+      };
+    }
+    return await prisma.employee.delete({
+      where: { id },
+    });
+  }
 }

@@ -119,4 +119,39 @@ export class LicenseService {
 
     return { message: 'License seat revoked successfully' };
   }
+
+  static async getLicenseById(id: string) {
+    const license = await prisma.softwareLicense.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        assignments: {
+          include: { employee: true, asset: true },
+        },
+      },
+    });
+    if (!license) throw { statusCode: 404, message: 'License not found' };
+    return license;
+  }
+
+  static async updateLicense(id: string, input: Partial<CreateLicenseInput>) {
+    const data: any = { ...input };
+    if (input.purchaseDate !== undefined) data.purchaseDate = input.purchaseDate ? new Date(input.purchaseDate) : null;
+    if (input.expiryDate !== undefined) data.expiryDate = input.expiryDate ? new Date(input.expiryDate) : null;
+    if (input.renewalDate !== undefined) data.renewalDate = input.renewalDate ? new Date(input.renewalDate) : null;
+    if (input.quantityPurchased !== undefined) data.quantityPurchased = Number(input.quantityPurchased);
+    if (input.cost !== undefined) data.cost = input.cost ? Number(input.cost) : 0;
+
+    return await prisma.softwareLicense.update({
+      where: { id },
+      data,
+    });
+  }
+
+  static async deleteLicense(id: string) {
+    await prisma.licenseAssignment.deleteMany({ where: { licenseId: id } });
+    return await prisma.softwareLicense.delete({
+      where: { id },
+    });
+  }
 }

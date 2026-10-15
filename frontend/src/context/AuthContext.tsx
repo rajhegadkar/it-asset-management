@@ -10,6 +10,8 @@ interface AuthContextType {
   logout: () => void;
   hasRole: (...roles: string[]) => boolean;
   hasPermission: (permission: string) => boolean;
+  updateUserOrganization: (name: string) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,12 +22,31 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
   hasRole: () => false,
   hasPermission: () => false,
+  updateUserOrganization: () => {},
+  refreshUser: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data?.success && res.data?.data) {
+        setUser(res.data.data);
+        localStorage.setItem('itam_user', JSON.stringify(res.data.data));
+      }
+    } catch (err: any) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem('itam_access_token');
+        localStorage.removeItem('itam_user');
+      }
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
@@ -41,21 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem('itam_user');
           }
         }
-
-        try {
-          const res = await api.get('/auth/profile');
-          if (res.data?.success && res.data?.data) {
-            setUser(res.data.data);
-            localStorage.setItem('itam_user', JSON.stringify(res.data.data));
-          }
-        } catch (err: any) {
-          if (err.response?.status === 401 || err.response?.status === 403) {
-            setToken(null);
-            setUser(null);
-            localStorage.removeItem('itam_access_token');
-            localStorage.removeItem('itam_user');
-          }
-        }
+        await refreshUser();
       }
       setLoading(false);
     };
@@ -78,20 +85,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/login';
   };
 
+  const updateUserOrganization = (name: string) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        organization: prev.organization ? { ...prev.organization, name } : { id: 'org', name, slug: 'org' } as any,
+      };
+      localStorage.setItem('itam_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const hasRole = (...roles: string[]) => {
     if (!user) return false;
-    if (user.role.name === 'SUPER_ADMIN') return true;
-    return roles.includes(user.role.name);
+    if (user.role?.name === 'SUPER_ADMIN') return true;
+    return roles.includes(user.role?.name);
   };
 
   const hasPermission = (perm: string) => {
     if (!user) return false;
-    if (user.role.name === 'SUPER_ADMIN') return true;
+    if (user.role?.name === 'SUPER_ADMIN') return true;
     return user.permissions?.includes(perm) || false;
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, hasRole, hasPermission }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, hasRole, hasPermission, updateUserOrganization, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

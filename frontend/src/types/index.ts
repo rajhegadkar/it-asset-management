@@ -192,8 +192,13 @@ export interface SoftwareLicense {
   quantityPurchased: number;
   quantityUsed: number;
   cost?: number;
+  vendorId?: string;
   vendor?: Vendor;
+  purchaseDate?: string;
   expiryDate?: string;
+  renewalDate?: string;
+  contractNumber?: string;
+  notes?: string;
   assignments?: Array<{
     id: string;
     employee?: Employee;

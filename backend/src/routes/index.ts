@@ -75,7 +75,10 @@ router.use('/maintenance', maintRouter);
 const licRouter = Router();
 licRouter.use(authenticate);
 licRouter.get('/', LicenseController.getLicenses);
+licRouter.get('/:id', LicenseController.getLicenseById);
 licRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.createLicense);
+licRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.updateLicense);
+licRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.deleteLicense);
 licRouter.post('/:id/assign', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.assignLicense);
 licRouter.delete('/assignment/:assignmentId', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.revokeLicense);
 router.use('/licenses', licRouter);
@@ -84,7 +87,10 @@ router.use('/licenses', licRouter);
 const consRouter = Router();
 consRouter.use(authenticate);
 consRouter.get('/', ConsumableController.getConsumables);
+consRouter.get('/:id', ConsumableController.getConsumableById);
 consRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.createConsumable);
+consRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.updateConsumable);
+consRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.deleteConsumable);
 consRouter.post('/:id/transaction', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), ConsumableController.recordTransaction);
 router.use('/consumables', consRouter);
 
@@ -95,19 +101,30 @@ empRouter.get('/', EmployeeController.getEmployees);
 empRouter.get('/:id', EmployeeController.getEmployeeById);
 empRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.createEmployee);
 empRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.updateEmployee);
+empRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.deleteEmployee);
 router.use('/employees', empRouter);
 
 // --- Organization Master Data (Departments, Locations, Vendors, Categories) ---
 const orgRouter = Router();
 orgRouter.use(authenticate);
+orgRouter.get('/organization', OrgDataController.getOrganization);
+orgRouter.put('/organization', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.updateOrganization);
 orgRouter.get('/departments', OrgDataController.getDepartments);
 orgRouter.post('/departments', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.createDepartment);
+orgRouter.put('/departments/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.updateDepartment);
+orgRouter.delete('/departments/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.deleteDepartment);
 orgRouter.get('/locations', OrgDataController.getLocations);
 orgRouter.post('/locations', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.createLocation);
+orgRouter.put('/locations/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.updateLocation);
+orgRouter.delete('/locations/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.deleteLocation);
 orgRouter.get('/vendors', OrgDataController.getVendors);
 orgRouter.post('/vendors', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.createVendor);
+orgRouter.put('/vendors/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.updateVendor);
+orgRouter.delete('/vendors/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.deleteVendor);
 orgRouter.get('/categories', OrgDataController.getCategories);
 orgRouter.post('/categories', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.createCategory);
+orgRouter.put('/categories/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.updateCategory);
+orgRouter.delete('/categories/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), OrgDataController.deleteCategory);
 router.use('/org', orgRouter);
 
 // --- Reports & Export ---

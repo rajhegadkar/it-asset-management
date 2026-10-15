@@ -52,8 +52,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const applyBrandingToDOM = (cfg: BrandingConfig) => {
-    if (cfg.portalTitle) {
-      document.title = `${cfg.portalTitle} - Version 3.0`;
+    if (cfg.companyName || cfg.portalTitle) {
+      document.title = `${cfg.companyName || cfg.portalTitle} - IT Asset Management`;
     }
 
     // Dynamic Favicon
