@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { TicketService } from '../services/ticketService.js';
 import { MaintenanceService } from '../services/maintenanceService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+import { prisma } from '../config/db.js';
 
 export class TicketController {
   static async getTickets(req: Request, res: Response, next: NextFunction) {
@@ -37,7 +38,19 @@ export class TicketController {
 
   static async createTicket(req: Request, res: Response, next: NextFunction) {
     try {
-      const requesterId = req.body.requesterId || req.user?.employeeId;
+      let requesterId = req.body.requesterId || req.user?.employeeId;
+      if (!requesterId) {
+        const emp = await prisma.employee.findFirst({
+          where: {
+            OR: [
+              ...(req.user?.id ? [{ userId: req.user.id }] : []),
+              ...(req.user?.email ? [{ email: req.user.email }] : []),
+            ],
+          },
+        }) || await prisma.employee.findFirst();
+        requesterId = emp?.id;
+      }
+
       if (!requesterId) {
         return ApiResponse.error(res, 'Requester employee profile is required', 400);
       }

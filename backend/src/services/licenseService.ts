@@ -53,20 +53,25 @@ export class LicenseService {
     };
   }
 
-  static async createLicense(input: CreateLicenseInput) {
+  static async createLicense(input: any) {
+    const publisher = input.publisher?.trim() || 'Enterprise Software';
+    const licenseType = input.licenseType || 'SUBSCRIPTION';
+    const quantityPurchased = Number(input.quantityPurchased ?? input.totalSeats ?? 1) || 1;
+    const cost = input.cost !== undefined ? Number(input.cost) : (input.costPerSeat ? Number(input.costPerSeat) : 0);
+
     return await prisma.softwareLicense.create({
       data: {
         softwareName: input.softwareName,
-        publisher: input.publisher,
+        publisher,
         version: input.version,
-        licenseType: input.licenseType,
+        licenseType,
         licenseKey: input.licenseKey,
         purchaseDate: input.purchaseDate ? new Date(input.purchaseDate) : null,
         expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
         renewalDate: input.renewalDate ? new Date(input.renewalDate) : null,
-        quantityPurchased: Number(input.quantityPurchased),
+        quantityPurchased,
         quantityUsed: 0,
-        cost: input.cost ? Number(input.cost) : 0,
+        cost,
         vendorId: input.vendorId,
         contractNumber: input.contractNumber,
         notes: input.notes,

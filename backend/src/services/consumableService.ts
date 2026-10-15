@@ -42,16 +42,23 @@ export class ConsumableService {
     };
   }
 
-  static async createConsumable(input: CreateConsumableInput) {
+  static async createConsumable(input: any) {
+    const category = input.category || 'OTHER';
+    const itemCode = input.itemCode?.trim() || `CONS-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const stockQuantity = Number(input.stockQuantity ?? input.currentStock ?? 0) || 0;
+    const minQuantity = Number(input.minQuantity ?? input.minStockAlert ?? 5) || 5;
+    const maxQuantity = Number(input.maxQuantity ?? 100) || 100;
+    const unitCost = input.unitCost !== undefined ? Number(input.unitCost) : 0;
+
     return await prisma.consumable.create({
       data: {
         name: input.name,
-        category: input.category,
-        itemCode: input.itemCode,
-        stockQuantity: Number(input.stockQuantity),
-        minQuantity: Number(input.minQuantity),
-        maxQuantity: Number(input.maxQuantity || 100),
-        unitCost: input.unitCost ? Number(input.unitCost) : 0,
+        category,
+        itemCode,
+        stockQuantity,
+        minQuantity,
+        maxQuantity,
+        unitCost,
         locationId: input.locationId,
         vendorId: input.vendorId,
       },

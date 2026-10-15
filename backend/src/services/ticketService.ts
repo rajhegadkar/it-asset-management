@@ -126,10 +126,12 @@ export class TicketService {
 
     const slaDueDate = new Date(Date.now() + slaHours * 60 * 60 * 1000);
 
+    const subject = input.subject || (input as any).title || 'General Incident Request';
+
     const ticket = await prisma.ticket.create({
       data: {
         ticketNumber,
-        subject: input.subject,
+        subject,
         description: input.description,
         category: input.category || 'HARDWARE',
         priority: input.priority || 'MEDIUM',

@@ -11,24 +11,35 @@ export class DepartmentLocationVendorService {
     logoUrl?: string;
     address?: string;
     email?: string;
+    contactEmail?: string;
     phone?: string;
     website?: string;
     taxId?: string;
     currency?: string;
   }) {
     const org = await prisma.organization.findFirst();
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.email !== undefined || data.contactEmail !== undefined) updateData.email = data.email || data.contactEmail;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.website !== undefined) updateData.website = data.website;
+    if (data.taxId !== undefined) updateData.taxId = data.taxId;
+    if (data.currency !== undefined) updateData.currency = data.currency;
+
     if (!org) {
       return await prisma.organization.create({
         data: {
-          name: data.name || 'Acme Global Technologies Inc.',
+          name: updateData.name || 'Acme Global Technologies Inc.',
           slug: 'organization-master',
-          ...data,
+          ...updateData,
         },
       });
     }
     return await prisma.organization.update({
       where: { id: org.id },
-      data,
+      data: updateData,
     });
   }
 
@@ -43,8 +54,17 @@ export class DepartmentLocationVendorService {
     });
   }
 
-  static async createDepartment(data: { name: string; code: string; departmentHead?: string; locationId?: string; costCenter?: string }) {
-    return await prisma.department.create({ data });
+  static async createDepartment(data: { name: string; code?: string; departmentHead?: string; locationId?: string; costCenter?: string }) {
+    const code = data.code?.trim() || `DEP-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    return await prisma.department.create({
+      data: {
+        name: data.name,
+        code,
+        departmentHead: data.departmentHead,
+        locationId: data.locationId,
+        costCenter: data.costCenter,
+      },
+    });
   }
 
   static async updateDepartment(id: string, data: Partial<{ name: string; code: string; departmentHead: string; locationId: string; costCenter: string }>) {
@@ -72,8 +92,17 @@ export class DepartmentLocationVendorService {
     });
   }
 
-  static async createLocation(data: { name: string; code: string; type?: string; parentId?: string; address?: string }) {
-    return await prisma.location.create({ data });
+  static async createLocation(data: { name: string; code?: string; type?: string; parentId?: string; address?: string }) {
+    const code = data.code?.trim() || `LOC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    return await prisma.location.create({
+      data: {
+        name: data.name,
+        code,
+        type: data.type || 'OFFICE',
+        parentId: data.parentId,
+        address: data.address,
+      },
+    });
   }
 
   static async updateLocation(id: string, data: Partial<{ name: string; code: string; type: string; parentId: string; address: string }>) {
@@ -101,16 +130,30 @@ export class DepartmentLocationVendorService {
 
   static async createVendor(data: {
     name: string;
-    code: string;
+    code?: string;
     contactPerson?: string;
     email?: string;
+    contactEmail?: string;
     phone?: string;
     address?: string;
     website?: string;
     taxId?: string;
     paymentTerms?: string;
   }) {
-    return await prisma.vendor.create({ data });
+    const code = data.code?.trim() || `VEN-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    return await prisma.vendor.create({
+      data: {
+        name: data.name,
+        code,
+        contactPerson: data.contactPerson,
+        email: data.email || data.contactEmail,
+        phone: data.phone,
+        address: data.address,
+        website: data.website,
+        taxId: data.taxId,
+        paymentTerms: data.paymentTerms,
+      },
+    });
   }
 
   static async updateVendor(id: string, data: Partial<{
@@ -118,15 +161,21 @@ export class DepartmentLocationVendorService {
     code: string;
     contactPerson: string;
     email: string;
+    contactEmail: string;
     phone: string;
     address: string;
     website: string;
     taxId: string;
     paymentTerms: string;
   }>) {
+    const updateData: any = { ...data };
+    if (data.contactEmail && !data.email) {
+      updateData.email = data.contactEmail;
+      delete updateData.contactEmail;
+    }
     return await prisma.vendor.update({
       where: { id },
-      data,
+      data: updateData,
     });
   }
 
@@ -149,16 +198,17 @@ export class DepartmentLocationVendorService {
 
   static async createCategory(data: {
     name: string;
-    code: string;
+    code?: string;
     parentId?: string;
     description?: string;
     icon?: string;
     customFieldsSchema?: any;
   }) {
+    const code = data.code?.trim() || `CAT-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
     return await prisma.category.create({
       data: {
         name: data.name,
-        code: data.code,
+        code,
         parentId: data.parentId,
         description: data.description,
         icon: data.icon,

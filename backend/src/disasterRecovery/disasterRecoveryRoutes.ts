@@ -30,6 +30,7 @@ disasterRecoveryRouter.post('/test-cloud', DisasterRecoveryController.testCloud)
 
 disasterRecoveryRouter.post('/create', DisasterRecoveryController.createBackup);
 disasterRecoveryRouter.get('/history', DisasterRecoveryController.getHistory);
+disasterRecoveryRouter.get('/list', DisasterRecoveryController.getHistory);
 disasterRecoveryRouter.get('/download/:filename', DisasterRecoveryController.downloadBackup);
 disasterRecoveryRouter.post('/restore', backupUpload.single('file'), DisasterRecoveryController.restoreBackup);
 disasterRecoveryRouter.delete('/:filename', DisasterRecoveryController.deleteBackup);
