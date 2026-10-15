@@ -158,7 +158,7 @@ export const DisasterRecoveryCenter: React.FC = () => {
       });
 
       // Automatically trigger download
-      window.open(`/api/v1/system/backup/download/${filename}`, '_blank');
+      handleDownload(filename);
 
       // Refresh list
       const histRes = await api.get('/system/backup/history');
@@ -170,8 +170,23 @@ export const DisasterRecoveryCenter: React.FC = () => {
     }
   };
 
-  const handleDownload = (filename: string) => {
-    window.open(`/api/v1/system/backup/download/${filename}`, '_blank');
+  const handleDownload = async (filename: string) => {
+    try {
+      const res = await api.get(`/system/backup/download/${filename}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        window.open(`/api/v1/system/backup/download/${filename}?token=${encodeURIComponent(token)}`, '_blank');
+      }
+    }
   };
 
   const handleDeleteBackup = async (filename: string) => {

@@ -442,13 +442,17 @@ export class AssetService {
       throw { statusCode: 404, message: 'No assets found for the specified IDs', code: 'ASSETS_NOT_FOUND' };
     }
 
+    const org = await prisma.organization.findFirst();
+    const brandingSetting = await prisma.systemSetting.findUnique({ where: { key: 'company.name' } });
+    const currentCompanyName = brandingSetting?.value || org?.name || 'IT Asset Management';
+
     const labelData = assets.map((a) => ({
       assetId: a.assetId,
       assetTag: a.assetTag,
       serialNumber: a.serialNumber,
       name: a.name,
       categoryName: a.category.name,
-      companyName: a.organization?.name || 'IT Asset Management',
+      companyName: currentCompanyName,
     }));
 
     return await PdfService.generateAssetLabelSheet(labelData);

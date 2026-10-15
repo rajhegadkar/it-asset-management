@@ -43,112 +43,127 @@ export class PdfService {
         doc.on('end', () => resolve(Buffer.concat(buffers)));
 
         let currentY = 40;
+        const orgName = (data.companyName || 'IT ASSET MANAGEMENT').toUpperCase();
 
-        // 1. Header Banner
-        doc.rect(40, currentY, 515, 62).fill('#0f172a');
+        // 1. Header Banner (Clean, high-contrast corporate card)
+        doc.roundedRect(40, currentY, 515, 64, 4).fill('#0f172a');
 
-        doc.fontSize(15).fillColor('#ffffff').font('Helvetica-Bold')
-           .text((data.companyName || 'IT ASSET MANAGEMENT').toUpperCase(), 55, currentY + 12, { width: 310, ellipsis: true });
-        doc.fontSize(8.5).fillColor('#94a3b8').font('Helvetica')
-           .text('OFFICIAL IT ASSET ALLOCATION & HANDOVER CERTIFICATE', 55, currentY + 34, { width: 310 });
+        // Company / Organization Name
+        doc.fontSize(13).fillColor('#ffffff').font('Helvetica-Bold')
+           .text(orgName, 55, currentY + 12, { width: 310, height: 16, ellipsis: true, lineBreak: false });
 
+        doc.fontSize(8).fillColor('#94a3b8').font('Helvetica-Bold')
+           .text('OFFICIAL IT ASSET ALLOCATION & HANDOVER CERTIFICATE', 55, currentY + 34, { width: 310, height: 12, lineBreak: false });
+
+        // Header Meta (Right column)
         doc.fontSize(8).fillColor('#cbd5e1').font('Helvetica')
-           .text(`Date of Issue: ${data.allocationDate}`, 360, currentY + 14, { width: 180, align: 'right' })
-           .text(`Allocation Type: ${data.allocationType || 'Standard'}`, 360, currentY + 28, { width: 180, align: 'right' });
+           .text(`Date of Issue: ${data.allocationDate}`, 360, currentY + 12, { width: 180, align: 'right', lineBreak: false })
+           .text(`Allocation Type: ${data.allocationType || 'Standard'}`, 360, currentY + 26, { width: 180, align: 'right', lineBreak: false });
         
         doc.fontSize(8).fillColor(data.termsAccepted ? '#34d399' : '#fbbf24').font('Helvetica-Bold')
-           .text(data.termsAccepted ? 'STATUS: ACKNOWLEDGED' : 'STATUS: PENDING SIGN-OFF', 360, currentY + 42, { width: 180, align: 'right' });
+           .text(data.termsAccepted ? 'STATUS: ACKNOWLEDGED' : 'STATUS: PENDING SIGN-OFF', 360, currentY + 42, { width: 180, align: 'right', lineBreak: false });
 
-        currentY += 76;
+        currentY += 74;
 
         // 2. Section: Recipient Employee Information
-        doc.rect(40, currentY, 515, 20).fill('#f1f5f9');
-        doc.fontSize(9.5).fillColor('#0f172a').font('Helvetica-Bold')
-           .text('1. RECIPIENT / EMPLOYEE INFORMATION', 50, currentY + 5);
+        doc.roundedRect(40, currentY, 515, 18, 2).fill('#f1f5f9');
+        doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+           .text('1. RECIPIENT / EMPLOYEE INFORMATION', 48, currentY + 4);
 
-        currentY += 26;
+        currentY += 24;
 
+        // Two distinct columns with fixed labelX and valueX to guarantee zero collision
         // Left Column (Employee identity)
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Full Name: ', 50, currentY, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.employeeName || 'N/A', { width: 230, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Employee ID: ', 50, currentY + 16, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.employeeId || 'N/A', { width: 230, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Full Name:', 50, currentY, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.employeeName || 'N/A', 130, currentY, { width: 155, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Employee ID:', 50, currentY + 15, { width: 75, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#2563eb').text(data.employeeId || 'N/A', 130, currentY + 15, { width: 155, ellipsis: true, lineBreak: false });
 
         // Right Column (Department & Email)
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Department: ', 300, currentY, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.departmentName || 'General', { width: 245, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Email Address: ', 300, currentY + 16, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.employeeEmail || 'N/A', { width: 245, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Department:', 305, currentY, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.departmentName || 'General', 385, currentY, { width: 160, ellipsis: true, lineBreak: false });
 
-        currentY += 38;
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Email Address:', 305, currentY + 15, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.employeeEmail || 'N/A', 385, currentY + 15, { width: 160, ellipsis: true, lineBreak: false });
+
+        currentY += 34;
 
         // 3. Section: Assigned IT Hardware Details
-        doc.rect(40, currentY, 515, 20).fill('#f1f5f9');
-        doc.fontSize(9.5).fillColor('#0f172a').font('Helvetica-Bold')
-           .text('2. ASSIGNED IT ASSET DETAILS', 50, currentY + 5);
+        doc.roundedRect(40, currentY, 515, 18, 2).fill('#f1f5f9');
+        doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+           .text('2. ASSIGNED IT ASSET DETAILS', 48, currentY + 4);
 
-        currentY += 26;
+        currentY += 24;
 
         // Col 1 (Identity)
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Asset Name: ', 50, currentY, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.assetName || 'N/A', { width: 175, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Asset Tag: ', 50, currentY + 16, { continued: true })
-           .font('Helvetica-Bold').fillColor('#2563eb').text(data.assetTag || data.assetId, { width: 175, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Asset ID: ', 50, currentY + 32, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.assetId || 'N/A', { width: 175, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Asset Name:', 50, currentY, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.assetName || 'N/A', 130, currentY, { width: 130, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Asset Tag:', 50, currentY + 15, { width: 75, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#2563eb').text(data.assetTag || data.assetId, 130, currentY + 15, { width: 130, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Asset ID:', 50, currentY + 30, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text(data.assetId || 'N/A', 130, currentY + 30, { width: 130, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Condition:', 50, currentY + 45, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#059669').text('NEW / VERIFIED GOOD', 130, currentY + 45, { width: 130, ellipsis: true, lineBreak: false });
 
         // Col 2 (Technical specs)
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Serial Number: ', 235, currentY, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.serialNumber || 'N/A', { width: 195, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Category: ', 235, currentY + 16, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(data.categoryName || 'General', { width: 195, ellipsis: true });
-        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569').text('Make / Model: ', 235, currentY + 32, { continued: true })
-           .font('Helvetica').fillColor('#0f172a').text(`${data.manufacturer || ''} ${data.model || ''}`.trim() || 'Standard Spec', { width: 195, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Serial Number:', 270, currentY, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.serialNumber || 'N/A', 350, currentY, { width: 120, ellipsis: true, lineBreak: false });
 
-        // Col 3: QR Code (safe width & height, no overlap)
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Category:', 270, currentY + 15, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.categoryName || 'General', 350, currentY + 15, { width: 120, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Make / Model:', 270, currentY + 30, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(`${data.manufacturer || ''} ${data.model || ''}`.trim() || 'Standard Unit', 350, currentY + 30, { width: 120, ellipsis: true, lineBreak: false });
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#475569').text('Custodian:', 270, currentY + 45, { width: 75, lineBreak: false });
+        doc.font('Helvetica').fontSize(8).fillColor('#0f172a').text(data.employeeName || 'N/A', 350, currentY + 45, { width: 120, ellipsis: true, lineBreak: false });
+
+        // Col 3: QR Code
         try {
           const qrBuffer = await BarcodeGenerator.generateQrCodeBuffer(data.assetTag || data.assetId);
-          doc.rect(448, currentY - 2, 66, 66).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
-          doc.image(qrBuffer, 451, currentY + 1, { width: 60, height: 60 });
-          doc.fontSize(6.5).fillColor('#64748b').font('Helvetica').text('Scan to Verify', 448, currentY + 68, { width: 66, align: 'center' });
+          doc.roundedRect(478, currentY - 2, 68, 68, 3).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
+          doc.image(qrBuffer, 482, currentY + 2, { width: 60, height: 60 });
+          doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('SCAN TO AUDIT', 478, currentY + 58, { width: 68, align: 'center', lineBreak: false });
         } catch {
-          // fallback placeholder
-          doc.rect(448, currentY - 2, 66, 66).strokeColor('#cbd5e1').stroke();
-          doc.fontSize(7).fillColor('#64748b').text('QR Code', 448, currentY + 25, { width: 66, align: 'center' });
+          doc.roundedRect(478, currentY - 2, 68, 68, 3).strokeColor('#cbd5e1').stroke();
+          doc.fontSize(7).fillColor('#64748b').text('QR Code', 478, currentY + 26, { width: 68, align: 'center' });
         }
 
-        currentY += 84;
+        currentY += 70;
 
         // 4. Section: Included Accessories
-        doc.rect(40, currentY, 515, 20).fill('#f1f5f9');
-        doc.fontSize(9.5).fillColor('#0f172a').font('Helvetica-Bold')
-           .text('3. BUNDLED ACCESSORIES & PERIPHERALS', 50, currentY + 5);
+        doc.roundedRect(40, currentY, 515, 18, 2).fill('#f1f5f9');
+        doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+           .text('3. BUNDLED ACCESSORIES & PERIPHERALS', 48, currentY + 4);
 
-        currentY += 26;
+        currentY += 24;
 
         if (!data.accessories || data.accessories.length === 0) {
-          doc.fontSize(8.5).fillColor('#64748b').font('Helvetica').text('No additional accessories or peripherals issued.', 50, currentY);
-          currentY += 20;
+          doc.fontSize(8).fillColor('#64748b').font('Helvetica').text('No additional peripheral accessories registered with this asset.', 50, currentY);
+          currentY += 16;
         } else {
-          // 2-column compact list to prevent page overflow
           const accList = data.accessories;
           for (let idx = 0; idx < accList.length; idx++) {
             const col = idx % 2;
             const row = Math.floor(idx / 2);
-            const posX = col === 0 ? 55 : 300;
-            const posY = currentY + row * 15;
-            doc.fontSize(8).fillColor('#0f172a').font('Helvetica')
-               .text(`[✓]  ${accList[idx]}`, posX, posY, { width: 235, ellipsis: true });
+            const posX = col === 0 ? 55 : 305;
+            const posY = currentY + row * 14;
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica')
+               .text(`[✓]  ${accList[idx]}`, posX, posY, { width: 235, ellipsis: true, lineBreak: false });
           }
           const rowCount = Math.ceil(accList.length / 2);
-          currentY += rowCount * 15 + 8;
+          currentY += rowCount * 14 + 6;
         }
 
         // 5. Section: Terms & Conditions
         currentY += 6;
-        doc.rect(40, currentY, 515, 18).fill('#f8fafc');
-        doc.fontSize(9).fillColor('#0f172a').font('Helvetica-Bold')
-           .text('4. TERMS OF ASSET CUSTODY & POLICY COMPLIANCE', 50, currentY + 4);
+        doc.roundedRect(40, currentY, 515, 18, 2).fill('#f8fafc');
+        doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+           .text('4. TERMS OF ASSET CUSTODY & POLICY COMPLIANCE', 48, currentY + 4);
 
         currentY += 22;
 
@@ -156,67 +171,73 @@ export class PdfService {
         const terms = rawTerms
           ? rawTerms.split('\n').map((l: string) => l.trim()).filter(Boolean)
           : [
-              '1. The employee acknowledges receipt of the designated corporate hardware equipment in good operating condition.',
-              '2. The equipment remains the exclusive property of the company and must be returned immediately upon separation or IT recall.',
-              '3. Unauthorized modification, hardware tampering, or personal subletting of the equipment is strictly prohibited.',
-              '4. In case of theft, loss, or hardware failure, the custodian must file an IT service incident within 24 hours.',
+              '1. Equipment Ownership: The hardware asset and accessories remain the exclusive property of the company and must be surrendered immediately upon separation, transfer, or IT department recall.',
+              '2. Authorized Use: The custodian agrees to use the device solely for official business activities in accordance with corporate Acceptable IT Use and Information Security policies.',
+              '3. Care & Safeguarding: The employee is responsible for taking reasonable precautions against theft, loss, damage, or unauthorized modifications. Equipment cannot be pledged, sublet, or altered.',
+              '4. Incident Reporting: In the event of loss, theft, hardware defect, or security compromise, the custodian must notify the IT Helpdesk and file a formal incident report within 24 hours.',
             ];
 
-        doc.fontSize(7.5).fillColor('#475569').font('Helvetica');
+        doc.fontSize(7).fillColor('#475569').font('Helvetica');
         for (const line of terms) {
-          doc.text(line, 50, currentY, { width: 495, lineGap: 1.5 });
-          currentY += 13;
+          const textH = doc.heightOfString(line, { width: 505, lineGap: 1.5 });
+          doc.text(line, 50, currentY, { width: 505, lineGap: 1.5 });
+          currentY += textH + 4;
         }
 
-        // 6. Signatures Block
-        currentY += 12;
-        const sigBoxHeight = 88;
+        // 6. Signatures Block (Spacious, beautifully boxed, never overlapping)
+        currentY += 8;
+        const sigBoxHeight = 84;
         const boxWidth = 245;
+
+        // Ensure signature box fits cleanly above the bottom footer at 785
+        if (currentY + sigBoxHeight > 775) {
+          currentY = 775 - sigBoxHeight;
+        }
 
         // Left Box: IT Representative
         doc.roundedRect(40, currentY, boxWidth, sigBoxHeight, 4).strokeColor('#cbd5e1').lineWidth(0.75).stroke();
         doc.roundedRect(40, currentY, boxWidth, 18, 4).fill('#f1f5f9');
         doc.rect(40, currentY + 14, boxWidth, 4).fill('#f1f5f9');
-        doc.fontSize(8).fillColor('#0f172a').font('Helvetica-Bold').text('ISSUED BY (IT OPERATIONS)', 48, currentY + 5);
+        doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold').text('ISSUED BY (IT OPERATIONS & ASSET MGMT)', 48, currentY + 5);
 
-        doc.fontSize(8).fillColor('#334155').font('Helvetica')
-           .text(`Authorized Officer: ${data.allocatedBy || 'IT Administrator'}`, 48, currentY + 24)
-           .text(`Digital Authorization: System Verified`, 48, currentY + 38)
-           .text(`Issue Timestamp: ${data.allocationDate}`, 48, currentY + 52);
+        doc.fontSize(7.5).fillColor('#334155').font('Helvetica')
+           .text(`Authorized Officer: ${data.allocatedBy || 'IT Administrator'}`, 48, currentY + 24, { width: 228, ellipsis: true })
+           .text(`Digital Verification: System Recorded`, 48, currentY + 38, { width: 228, ellipsis: true })
+           .text(`Handover Date: ${data.allocationDate}`, 48, currentY + 52, { width: 228, ellipsis: true });
 
-        // Right Box: Recipient Employee
+        // Right Box: Recipient Employee Custodian
         const rightBoxX = 310;
         doc.roundedRect(rightBoxX, currentY, boxWidth, sigBoxHeight, 4).strokeColor('#cbd5e1').lineWidth(0.75).stroke();
         doc.roundedRect(rightBoxX, currentY, boxWidth, 18, 4).fill('#f1f5f9');
         doc.rect(rightBoxX, currentY + 14, boxWidth, 4).fill('#f1f5f9');
-        doc.fontSize(8).fillColor('#0f172a').font('Helvetica-Bold').text('EMPLOYEE CUSTODIAN ACCEPTANCE', rightBoxX + 8, currentY + 5);
+        doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold').text('EMPLOYEE CUSTODIAN ACCEPTANCE', rightBoxX + 8, currentY + 5);
 
-        doc.fontSize(8).fillColor('#334155').font('Helvetica')
-           .text(`Recipient Name: ${data.employeeName || 'N/A'}`, rightBoxX + 8, currentY + 24);
+        doc.fontSize(7.5).fillColor('#334155').font('Helvetica')
+           .text(`Custodian Name: ${data.employeeName || 'N/A'}`, rightBoxX + 8, currentY + 22, { width: 228, ellipsis: true });
 
         if (data.signatureData && data.signatureData.startsWith('data:image')) {
           try {
             const base64Data = data.signatureData.replace(/^data:image\/\w+;base64,/, '');
             const sigBuf = Buffer.from(base64Data, 'base64');
-            doc.image(sigBuf, rightBoxX + 8, currentY + 36, { fit: [140, 32] });
-            doc.fontSize(7).fillColor('#64748b').text(`Signed: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 70);
+            doc.image(sigBuf, rightBoxX + 8, currentY + 34, { fit: [140, 28] });
+            doc.fontSize(6.5).fillColor('#64748b').font('Helvetica').text(`Digitally Signed: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 68, { width: 228, lineBreak: false });
           } catch {
-            doc.fontSize(8).fillColor('#059669').font('Helvetica-Bold').text('✓ Digital Signature Confirmed', rightBoxX + 8, currentY + 40);
-            doc.fontSize(7).fillColor('#64748b').font('Helvetica').text(`Acknowledged: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 56);
+            doc.fontSize(7.5).fillColor('#059669').font('Helvetica-Bold').text('✓ Digital Signature Confirmed', rightBoxX + 8, currentY + 38);
+            doc.fontSize(6.5).fillColor('#64748b').font('Helvetica').text(`Acknowledged: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 54);
           }
         } else if (data.termsAccepted) {
-          doc.fontSize(8).fillColor('#059669').font('Helvetica-Bold').text('✓ ELECTRONIC ACCEPTANCE CONFIRMED', rightBoxX + 8, currentY + 40);
-          doc.fontSize(7).fillColor('#64748b').font('Helvetica').text(`Digital Audit Stamp: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 54);
-          doc.fontSize(6.5).fillColor('#94a3b8').text('Cryptographically validated via employee portal session', rightBoxX + 8, currentY + 68);
+          doc.fontSize(8).fillColor('#059669').font('Helvetica-Bold').text('✓ ELECTRONIC ACCEPTANCE CONFIRMED', rightBoxX + 8, currentY + 36);
+          doc.fontSize(6.5).fillColor('#64748b').font('Helvetica').text(`Digital Audit Stamp: ${data.acknowledgedAt || data.allocationDate}`, rightBoxX + 8, currentY + 50);
+          doc.fontSize(6).fillColor('#94a3b8').text('Cryptographically validated via employee portal session', rightBoxX + 8, currentY + 64);
         } else {
-          doc.moveTo(rightBoxX + 10, currentY + 62).lineTo(rightBoxX + boxWidth - 10, currentY + 62).strokeColor('#94a3b8').stroke();
-          doc.fontSize(7).fillColor('#64748b').text('Physical Signature & Date of Receipt', rightBoxX + 10, currentY + 68);
+          doc.moveTo(rightBoxX + 10, currentY + 60).lineTo(rightBoxX + boxWidth - 10, currentY + 60).strokeColor('#94a3b8').stroke();
+          doc.fontSize(6.5).fillColor('#64748b').font('Helvetica').text('Physical Signature & Date of Receipt', rightBoxX + 10, currentY + 66, { width: boxWidth - 20, align: 'center' });
         }
 
-        // 7. Confidential Footer (Pinned at page bottom)
+        // 7. Confidential Footer (Pinned at page bottom, cleanly separated)
         doc.moveTo(40, 785).lineTo(555, 785).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-        doc.fontSize(7.5).fillColor('#94a3b8').font('Helvetica')
-           .text('IT Asset Management System v2.0 • Official Custody Audit Certificate • Confidential Corporate Record', 40, 792, { align: 'center', width: 515 });
+        doc.fontSize(7).fillColor('#94a3b8').font('Helvetica')
+           .text(`${orgName} • Official Custody Audit Certificate • Confidential Record`, 40, 792, { align: 'center', width: 515 });
 
         doc.end();
       } catch (err) {
@@ -246,8 +267,6 @@ export class PdfService {
         doc.on('data', buffers.push.bind(buffers));
         doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-        const pdfConfig = await PdfTemplateEngine.getConfig();
-
         // A4 Grid: 2 columns x 4 rows per page = 8 labels per page
         // Clean layout: label width 260pt, height 165pt
         const labelWidth = 260;
@@ -265,6 +284,9 @@ export class PdfService {
           const x = startX + col * (labelWidth + gapX);
           const y = startY + row * (labelHeight + gapY);
 
+          const orgName = (a.companyName || 'IT ASSET MANAGEMENT').trim().toUpperCase();
+          const tagDisplay = a.assetTag || a.assetId;
+
           // 1. Label Outer Border
           doc.roundedRect(x, y, labelWidth, labelHeight, 4).lineWidth(0.75).strokeColor('#0f172a').stroke();
 
@@ -272,82 +294,66 @@ export class PdfService {
           doc.roundedRect(x, y, labelWidth, 24, 4).fill('#0f172a');
           doc.rect(x, y + 16, labelWidth, 8).fill('#0f172a'); // Square off lower banner corners
 
-          const headerTitle = (pdfConfig.headerText || a.companyName || 'IT ASSET MANAGEMENT').toUpperCase();
+          // Prominently displays the Organization Name on the left
           doc.fontSize(8.5).fillColor('#ffffff').font('Helvetica-Bold')
-             .text(headerTitle, x + 8, y + 7, { width: labelWidth - 68, ellipsis: true });
+             .text(orgName, x + 8, y + 7, { width: labelWidth - 68, height: 12, ellipsis: true, lineBreak: false });
           doc.fontSize(6.5).fillColor('#94a3b8').font('Helvetica-Bold')
-             .text('IT ASSET', x + labelWidth - 55, y + 8, { width: 47, align: 'right' });
+             .text('IT ASSET', x + labelWidth - 55, y + 8, { width: 47, align: 'right', lineBreak: false });
 
           // 3. Middle Section: Information (Left) & QR Code (Right)
-          const tagDisplay = a.assetTag || a.assetId;
-          
-          // Left Info Details with dynamic cursor tracking to completely avoid collisions
-          let curY = y + 27;
+          // Details Stack (Left: x + 8 to x + 180, width 172 pt)
+          // Line 1: Asset Tag in bold blue
+          doc.fontSize(9.5).fillColor('#1d4ed8').font('Helvetica-Bold')
+             .text(tagDisplay, x + 8, y + 29, { width: 170, height: 12, lineBreak: false, ellipsis: true });
 
-          // 1. Primary Asset Tag
-          doc.fontSize(9).fillColor('#0f172a').font('Helvetica-Bold')
-             .text(`TAG: ${tagDisplay}`, x + 8, curY, { width: 167, lineBreak: false, ellipsis: true });
-          curY += 12;
+          // Line 2: Equipment Name / Model
+          doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
+             .text(a.name || 'Hardware Asset', x + 8, y + 43, { width: 170, height: 11, lineBreak: false, ellipsis: true });
 
-          // 2. Asset System Master ID
-          doc.fontSize(7.5).fillColor('#2563eb').font('Helvetica-Bold')
-             .text(`ID: ${a.assetId}`, x + 8, curY, { width: 167, lineBreak: false, ellipsis: true });
-          curY += 11;
+          // Line 3: Serial Number
+          doc.fontSize(7).fillColor('#475569').font('Helvetica')
+             .text(`S/N: ${a.serialNumber || 'N/A'}`, x + 8, y + 56, { width: 170, height: 10, lineBreak: false, ellipsis: true });
 
-          // 3. Serial Number
-          doc.fontSize(7.5).fillColor('#475569').font('Helvetica')
-             .text(`S/N: ${a.serialNumber || 'N/A'}`, x + 8, curY, { width: 167, lineBreak: false, ellipsis: true });
-          curY += 11;
+          // Line 4: Category
+          doc.fontSize(7).fillColor('#475569').font('Helvetica')
+             .text(`Cat: ${a.categoryName || 'General'}`, x + 8, y + 68, { width: 170, height: 10, lineBreak: false, ellipsis: true });
 
-          // 4. Model Name (dynamically tracked: if 2 lines, curY advances cleanly without overlapping Cat)
-          doc.fontSize(7.5).fillColor('#334155').font('Helvetica');
-          const modelLabel = `Model: ${a.name || 'Equipment'}`;
-          const modelW = doc.widthOfString(modelLabel);
-          if (modelW > 167) {
-            doc.text(modelLabel, x + 8, curY, { width: 167, height: 20, ellipsis: true });
-            curY += 20;
-          } else {
-            doc.text(modelLabel, x + 8, curY, { width: 167, lineBreak: false, ellipsis: true });
-            curY += 11;
-          }
+          // Line 5: Owner / Entity
+          doc.fontSize(6.5).fillColor('#64748b').font('Helvetica')
+             .text(`Owner: ${orgName}`, x + 8, y + 80, { width: 170, height: 10, lineBreak: false, ellipsis: true });
 
-          // 5. Category (positioned strictly below Model with zero overlap)
-          doc.fontSize(7).fillColor('#64748b').font('Helvetica')
-             .text(`Cat: ${a.categoryName || 'Hardware'}`, x + 8, curY, { width: 167, lineBreak: false, ellipsis: true });
-
-          // Right QR Code: clean 70x68 box from x + 180 to 250, y + 27 to 95
+          // Right QR Code: clean 64x64 box from x + 186 to x + 252
           try {
             const qrBuffer = await BarcodeGenerator.generateQrCodeBuffer(tagDisplay);
-            doc.roundedRect(x + 180, y + 27, 70, 68, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-            doc.image(qrBuffer, x + 185, y + 31, { width: 60, height: 60 });
+            doc.roundedRect(x + 186, y + 28, 64, 62, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            doc.image(qrBuffer, x + 189, y + 30, { width: 58, height: 58 });
           } catch {
-            doc.roundedRect(x + 180, y + 27, 70, 68, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            doc.roundedRect(x + 186, y + 28, 64, 62, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
           }
 
           // 4. Subtle Divider Line before Barcode
-          doc.moveTo(x + 8, y + 98).lineTo(x + labelWidth - 8, y + 98).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+          doc.moveTo(x + 8, y + 96).lineTo(x + labelWidth - 8, y + 96).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-          // 5. 1D Barcode Section (Below y + 100, completely clear of QR code and text!)
+          // 5. 1D Barcode Section (Cleanly bounded, zero collisions)
           try {
-            // Note: includetext: false ensures bwip-js doesn't overlap text with bars or bottom border
             const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, 'code128', {
               includetext: false,
-              height: 8,
+              height: 7,
               scale: 3,
             });
-            doc.image(barcodeBuffer, x + 18, y + 102, { width: labelWidth - 36, height: 26 });
+            doc.image(barcodeBuffer, x + 25, y + 100, { width: labelWidth - 50, height: 22 });
           } catch {
             doc.fontSize(8.5).fillColor('#000').font('Helvetica-Bold')
-               .text(`* ${tagDisplay} *`, x + 10, y + 108, { width: labelWidth - 20, align: 'center', lineBreak: false });
+               .text(`* ${tagDisplay} *`, x + 10, y + 106, { width: labelWidth - 20, align: 'center', lineBreak: false });
           }
 
           // Human-readable barcode text centered below bars
           doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
-             .text(`* ${tagDisplay} *`, x + 10, y + 132, { width: labelWidth - 20, align: 'center', lineBreak: false });
+             .text(`* ${tagDisplay} *`, x + 8, y + 125, { width: labelWidth - 16, align: 'center', height: 10, lineBreak: false });
 
           // Security tag notice at the very bottom
-          doc.fontSize(6).fillColor('#94a3b8').font('Helvetica')
-             .text('PROPERTY OF ORGANIZATION • DO NOT REMOVE', x + 10, y + 146, { width: labelWidth - 20, align: 'center', lineBreak: false });
+          doc.fontSize(5.5).fillColor('#64748b').font('Helvetica')
+             .text(`PROPERTY OF ${orgName} • DO NOT REMOVE`, x + 8, y + 145, { width: labelWidth - 16, align: 'center', height: 9, lineBreak: false, ellipsis: true });
 
           col++;
           if (col >= 2) {

@@ -26,8 +26,38 @@ export const ReportsPage: React.FC = () => {
     fetchReport();
   }, [activeReport]);
 
-  const handleExport = (format: 'xlsx' | 'csv') => {
-    window.open(`/api/v1/reports/export?entity=assets&format=${format}`, '_blank');
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExport = async (format: 'xlsx' | 'csv') => {
+    setExporting(format);
+    try {
+      const res = await api.get(`/reports/export?entity=${activeReport}&format=${format}`, {
+        responseType: 'blob',
+      });
+      const mimeType = format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/csv;charset=utf-8;';
+      const blob = new Blob([res.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${activeReport}-audit-report.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Export error:', err);
+      // Fallback with query token if direct blob download encounters issue
+      const token = localStorage.getItem('token');
+      if (token) {
+        window.open(`/api/v1/reports/export?entity=${activeReport}&format=${format}&token=${encodeURIComponent(token)}`, '_blank');
+      } else {
+        alert('Failed to export report. Please verify login.');
+      }
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
@@ -45,17 +75,19 @@ export const ReportsPage: React.FC = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => handleExport('xlsx')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            disabled={exporting !== null}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Excel</span>
+            <span>{exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}</span>
           </button>
           <button
             onClick={() => handleExport('csv')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold shadow-sm hover:bg-slate-50"
+            disabled={exporting !== null}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 disabled:opacity-50 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold shadow-sm hover:bg-slate-50 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <span>{exporting === 'csv' ? 'Exporting...' : 'Export CSV'}</span>
           </button>
         </div>
       </div>

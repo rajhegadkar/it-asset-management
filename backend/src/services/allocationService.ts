@@ -208,11 +208,15 @@ export class AllocationService {
 
     const accessories = assignment.accessories ? JSON.parse(assignment.accessories) : [];
 
+    const org = await prisma.organization.findFirst();
+    const brandingSetting = await prisma.systemSetting.findUnique({ where: { key: 'company.name' } });
+    const currentCompanyName = brandingSetting?.value || org?.name || assignment.asset.organization?.name || 'IT Asset Management';
+
     return await PdfService.generateHandoverDocument({
-      companyName: assignment.asset.organization?.name || 'IT Asset Management',
-      companyAddress: assignment.asset.organization?.address || undefined,
-      companyEmail: assignment.asset.organization?.email || undefined,
-      companyPhone: assignment.asset.organization?.phone || undefined,
+      companyName: currentCompanyName,
+      companyAddress: org?.address || assignment.asset.organization?.address || undefined,
+      companyEmail: org?.email || assignment.asset.organization?.email || undefined,
+      companyPhone: org?.phone || assignment.asset.organization?.phone || undefined,
       employeeName: `${assignment.employee.firstName} ${assignment.employee.lastName}`,
       employeeId: assignment.employee.employeeId,
       employeeEmail: assignment.employee.email,
