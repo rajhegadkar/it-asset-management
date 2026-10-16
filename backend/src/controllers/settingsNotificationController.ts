@@ -243,7 +243,7 @@ export class SettingsNotificationController {
 
       return ApiResponse.success(res, {
         status: 'UP',
-        version: '1.0.0',
+        version: '2.0.0',
         uptime: process.uptime(),
         database: 'CONNECTED',
         scheduler: schedulerStatus,
