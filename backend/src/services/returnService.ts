@@ -55,8 +55,9 @@ export class ReturnService {
     }
 
     // Determine target asset status
+    const effectiveCondition = input.condition || (input as any).returnCondition || 'GOOD';
     let nextStatus = input.newStatus || 'AVAILABLE';
-    if (input.condition === 'DAMAGED' && !input.newStatus) {
+    if (effectiveCondition === 'DAMAGED' && !input.newStatus) {
       nextStatus = 'UNDER_MAINTENANCE';
     }
 
@@ -68,7 +69,7 @@ export class ReturnService {
         employeeId: employee?.id || asset.currentEmployeeId!,
         returnedDate: new Date(),
         receivedById: user?.id || 'system',
-        condition: input.condition,
+        condition: effectiveCondition,
         damageNotes: input.damageNotes,
         accessoriesReturned: input.accessoriesReturned ? JSON.stringify(input.accessoriesReturned) : null,
         missingAccessories: input.missingAccessories ? JSON.stringify(input.missingAccessories) : null,
@@ -81,7 +82,7 @@ export class ReturnService {
       where: { id: asset.id },
       data: {
         status: nextStatus,
-        condition: input.condition,
+        condition: effectiveCondition,
         currentEmployeeId: null,
         assignmentDate: null,
         expectedReturnDate: null,

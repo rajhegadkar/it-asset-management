@@ -181,7 +181,7 @@ export class EmailService {
       if (category === 'expiry' && !config.notifyOnExpiry) return true;
 
       // Mock in test or if credentials are empty
-      if (!config.smtpUser || env.NODE_ENV === 'test') {
+      if (!config.smtpUser || env.NODE_ENV === 'test' || process.env.NODE_ENV === 'test') {
         logger.info(`📧 [MOCK EMAIL DISPATCH] To: ${options.to} | Subject: ${options.subject}`);
         return true;
       }

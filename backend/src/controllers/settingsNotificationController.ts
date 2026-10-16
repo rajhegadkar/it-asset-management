@@ -127,7 +127,8 @@ export class SettingsNotificationController {
       }
 
       EmailService.resetTransporter();
-      return ApiResponse.success(res, null, 'Email settings updated successfully');
+      const updatedConfig = await EmailService.getConfig();
+      return ApiResponse.success(res, updatedConfig, 'Email settings updated successfully');
     } catch (error) {
       next(error);
     }
