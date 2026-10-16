@@ -99,7 +99,7 @@ export const CustomizationCenterPage: React.FC = () => {
     labelHeightMm: 36,
     labelsPerRow: 3,
     labelsPerCol: 8,
-    barcodeType: 'CODE128',
+    barcodeType: 'QR',
     showLogo: true,
     headerText: 'PROPERTY OF IT OPERATIONS',
     includeFields: ['assetTag', 'serialNumber', 'model', 'category'],
@@ -1253,9 +1253,9 @@ export const CustomizationCenterPage: React.FC = () => {
                         onChange={(e) => setPdfConfig({ ...pdfConfig, barcodeType: e.target.value as any })}
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-semibold"
                       >
-                        <option value="CODE128">Code 128 (High-Density Alphanumeric)</option>
-                        <option value="CODE39">Code 39 (Standard Industrial)</option>
-                        <option value="QR">2D QR Code Only</option>
+                        <option value="QR">2D QR Code Only (Restructured Modern Layout)</option>
+                        <option value="CODE128">Code 128 (Dual QR + 1D Barcode)</option>
+                        <option value="CODE39">Code 39 (1D Barcode Only)</option>
                       </select>
                     </div>
                   </div>
@@ -1293,83 +1293,148 @@ export const CustomizationCenterPage: React.FC = () => {
                         Live Barcode Sticker Preview
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        Zero-Collision Engine
+                        {pdfConfig.barcodeType === 'QR' ? 'Restructured QR Layout' : 'Zero-Collision Engine'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 mb-3">
-                      Shows exact text wrapping, dynamic category positioning, and barcode margins.
+                      Shows exact text wrapping, symmetrical grid alignment, and symbology layout.
                     </p>
 
                     {/* Sticker Card Mockup */}
                     <div className="border-2 border-slate-900 rounded-xl overflow-hidden bg-white text-slate-900 shadow-md">
                       {/* Top Header */}
                       <div className="bg-slate-900 text-white px-3 py-1.5 flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-[180px]">
-                          {pdfConfig.headerText || 'PROPERTY OF IT OPERATIONS'}
+                        <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-[200px]">
+                          {pdfConfig.headerText || brandForm.companyName || 'GLOBAL TECHNOLOGIES INC.'}
                         </span>
                         <span className="text-[9px] text-slate-400 font-bold shrink-0">
                           IT ASSET
                         </span>
                       </div>
 
-                      {/* Middle Details & QR */}
-                      <div className="p-3 flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="text-[11px] font-bold text-slate-900 truncate">
-                            TAG: TAG-IT-COM-000011
-                          </div>
-                          <div className="text-[10px] font-bold text-blue-600 truncate">
-                            ID: IT-COM-000011
-                          </div>
-                          <div className="text-[10px] text-slate-600 truncate">
-                            S/N: SN-HP-ZB10-1791061580561
-                          </div>
-                          <div className="text-[10px] text-slate-800 leading-snug">
-                            Model: HP ZBook Studio G10 Mobile Workstation
-                          </div>
-                          <div className="text-[9px] text-slate-500 font-medium pt-0.5">
-                            Cat: Computing
-                          </div>
-                        </div>
+                      {pdfConfig.barcodeType === 'QR' ? (
+                        /* RESTRUCTURED MODERN QR-ONLY LAYOUT */
+                        <div className="p-3">
+                          <div className="flex items-stretch gap-3">
+                            {/* Left Hero QR Column */}
+                            <div className="w-24 shrink-0 flex flex-col items-center justify-between space-y-2">
+                              {/* QR Box */}
+                              <div className="w-20 h-20 border border-slate-200 rounded-lg p-1.5 flex items-center justify-center bg-white shadow-xs">
+                                <svg className="w-16 h-16" viewBox="0 0 25 25" fill="none">
+                                  <rect width="25" height="25" fill="white" />
+                                  <rect x="2" y="2" width="7" height="7" fill="black" />
+                                  <rect x="3" y="3" width="5" height="5" fill="white" />
+                                  <rect x="4" y="4" width="3" height="3" fill="black" />
+                                  <rect x="16" y="2" width="7" height="7" fill="black" />
+                                  <rect x="17" y="3" width="5" height="5" fill="white" />
+                                  <rect x="18" y="4" width="3" height="3" fill="black" />
+                                  <rect x="2" y="16" width="7" height="7" fill="black" />
+                                  <rect x="3" y="17" width="5" height="5" fill="white" />
+                                  <rect x="4" y="18" width="3" height="3" fill="black" />
+                                  <rect x="11" y="4" width="2" height="4" fill="black" />
+                                  <rect x="11" y="11" width="3" height="3" fill="black" />
+                                  <rect x="16" y="12" width="4" height="2" fill="black" />
+                                  <rect x="12" y="18" width="3" height="5" fill="black" />
+                                  <rect x="18" y="18" width="5" height="3" fill="black" />
+                                </svg>
+                              </div>
+                              {/* Asset ID Badge Directly Below QR Code */}
+                              <div className="w-full bg-blue-50 border border-blue-200 rounded-md py-1 px-1.5 text-center">
+                                <div className="text-[7px] font-bold text-blue-600 uppercase tracking-wider">ASSET ID</div>
+                                <div className="text-[10px] font-bold text-blue-800 font-mono leading-tight truncate">IT-COM-000045</div>
+                              </div>
+                            </div>
 
-                        {/* QR Code Graphic Box */}
-                        <div className="shrink-0 w-16 h-16 border border-slate-200 rounded p-1 flex items-center justify-center bg-white">
-                          <svg className="w-14 h-14" viewBox="0 0 25 25" fill="none">
-                            <rect width="25" height="25" fill="white" />
-                            <rect x="2" y="2" width="7" height="7" fill="black" />
-                            <rect x="3" y="3" width="5" height="5" fill="white" />
-                            <rect x="4" y="4" width="3" height="3" fill="black" />
-                            <rect x="16" y="2" width="7" height="7" fill="black" />
-                            <rect x="17" y="3" width="5" height="5" fill="white" />
-                            <rect x="18" y="4" width="3" height="3" fill="black" />
-                            <rect x="2" y="16" width="7" height="7" fill="black" />
-                            <rect x="3" y="17" width="5" height="5" fill="white" />
-                            <rect x="4" y="18" width="3" height="3" fill="black" />
-                            <rect x="11" y="4" width="2" height="4" fill="black" />
-                            <rect x="11" y="11" width="3" height="3" fill="black" />
-                            <rect x="16" y="12" width="4" height="2" fill="black" />
-                            <rect x="12" y="18" width="3" height="5" fill="black" />
-                            <rect x="18" y="18" width="5" height="3" fill="black" />
-                          </svg>
-                        </div>
-                      </div>
+                            {/* Center Divider Line */}
+                            <div className="w-px bg-slate-200 self-stretch" />
 
-                      {/* Divider */}
-                      <div className="border-t border-slate-200 mx-3" />
+                            {/* Right Details Panel */}
+                            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between space-y-1.5 min-w-0">
+                              {/* Row 1: Equipment / Model */}
+                              <div>
+                                <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">EQUIPMENT / MODEL</div>
+                                <div className="text-[10px] font-bold text-slate-900 leading-snug line-clamp-2">HP ZBook Studio G10 Mobile Workstation</div>
+                              </div>
+                              <div className="border-t border-slate-200" />
 
-                      {/* 1D Barcode Strip */}
-                      <div className="p-2.5 text-center space-y-1">
-                        <div className="flex items-center justify-center space-x-0.5 h-6 overflow-hidden">
-                          {[3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1].map((w, i) => (
-                            <div key={i} className="bg-black h-full" style={{ width: `${w}px` }} />
-                          ))}
+                              {/* Row 2: Serial Number */}
+                              <div>
+                                <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">SERIAL NUMBER</div>
+                                <div className="text-[10px] font-bold text-slate-900 font-mono truncate">SN-HP-ZB10-0045</div>
+                              </div>
+                              <div className="border-t border-slate-200" />
+
+                              {/* Row 3: User */}
+                              <div>
+                                <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">USER</div>
+                                <div className="text-[10px] font-bold text-slate-800 truncate">Unassigned (In Stock)</div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[10px] font-mono font-bold text-slate-900 tracking-wider">
-                          * TAG-IT-COM-000011 *
-                        </div>
-                        <div className="text-[8px] text-slate-400 tracking-wider">
-                          PROPERTY OF ORGANIZATION • DO NOT REMOVE
-                        </div>
+                      ) : (
+                        /* DUAL BARCODE / CLASSIC LAYOUT */
+                        <>
+                          <div className="p-3 flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="text-[11px] font-bold text-slate-900 truncate">
+                                TAG: TAG-IT-COM-000011
+                              </div>
+                              <div className="text-[10px] font-bold text-blue-600 truncate">
+                                ID: IT-COM-000011
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate">
+                                S/N: SN-HP-ZB10-1791061580561
+                              </div>
+                              <div className="text-[10px] text-slate-800 leading-snug">
+                                Model: HP ZBook Studio G10 Mobile Workstation
+                              </div>
+                              <div className="text-[9px] text-slate-500 font-medium pt-0.5">
+                                Cat: Computing
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 w-16 h-16 border border-slate-200 rounded p-1 flex items-center justify-center bg-white">
+                              <svg className="w-14 h-14" viewBox="0 0 25 25" fill="none">
+                                <rect width="25" height="25" fill="white" />
+                                <rect x="2" y="2" width="7" height="7" fill="black" />
+                                <rect x="3" y="3" width="5" height="5" fill="white" />
+                                <rect x="4" y="4" width="3" height="3" fill="black" />
+                                <rect x="16" y="2" width="7" height="7" fill="black" />
+                                <rect x="17" y="3" width="5" height="5" fill="white" />
+                                <rect x="18" y="4" width="3" height="3" fill="black" />
+                                <rect x="2" y="16" width="7" height="7" fill="black" />
+                                <rect x="3" y="17" width="5" height="5" fill="white" />
+                                <rect x="4" y="18" width="3" height="3" fill="black" />
+                                <rect x="11" y="4" width="2" height="4" fill="black" />
+                                <rect x="11" y="11" width="3" height="3" fill="black" />
+                                <rect x="16" y="12" width="4" height="2" fill="black" />
+                                <rect x="12" y="18" width="3" height="5" fill="black" />
+                                <rect x="18" y="18" width="5" height="3" fill="black" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-200 mx-3" />
+
+                          <div className="p-2.5 text-center space-y-1">
+                            <div className="flex items-center justify-center space-x-0.5 h-6 overflow-hidden">
+                              {[3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1].map((w, i) => (
+                                <div key={i} className="bg-black h-full" style={{ width: `${w}px` }} />
+                              ))}
+                            </div>
+                            <div className="text-[10px] font-mono font-bold text-slate-900 tracking-wider">
+                              * TAG-IT-COM-000011 *
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Bottom Footer Notice */}
+                      <div className="bg-slate-50 border-t border-slate-200 py-1 px-3 text-center">
+                        <span className="text-[8px] text-slate-500 font-medium tracking-wide uppercase">
+                          PROPERTY OF {pdfConfig.headerText || brandForm.companyName || 'GLOBAL TECHNOLOGIES INC.'} • DO NOT REMOVE
+                        </span>
                       </div>
                     </div>
                   </div>

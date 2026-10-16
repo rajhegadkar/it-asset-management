@@ -261,7 +261,7 @@ export class PdfService {
       userName?: string;
       companyName: string;
     }>,
-    stickerStyle: string = 'BOTH'
+    stickerStyle: string = 'QR_ONLY'
   ): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -283,7 +283,7 @@ export class PdfService {
         let col = 0;
         let row = 0;
 
-        const mode = (stickerStyle || 'BOTH').toUpperCase();
+        const mode = (stickerStyle || 'QR_ONLY').toUpperCase();
 
         for (let i = 0; i < assets.length; i++) {
           const a = assets[i];
@@ -333,26 +333,26 @@ export class PdfService {
             // Right Details Panel (Symmetric 8pt margin to right edge)
             doc.roundedRect(x + 108, y + 28, 144, 118, 4).fill('#f8fafc').strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-            // Field 1: Serial Number (Replaced Asset ID as requested)
-            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('SERIAL NUMBER', x + 116, y + 33, { width: 128 });
-            doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
-               .text(snDisplay, x + 116, y + 43, { width: 128, height: 12, ellipsis: true, lineBreak: false });
+            // Row 1: Equipment / Model (Lengthy model name wrapping up to 2 lines)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('EQUIPMENT / MODEL', x + 116, y + 33, { width: 128 });
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(modelText, x + 116, y + 42, { width: 128, height: 22, ellipsis: true, lineGap: 1 });
 
             // Divider 1
-            doc.moveTo(x + 116, y + 60).lineTo(x + 244, y + 60).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            doc.moveTo(x + 116, y + 68).lineTo(x + 244, y + 68).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-            // Field 2: Equipment / Model
-            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('EQUIPMENT / MODEL', x + 116, y + 65, { width: 128 });
-            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
-               .text(modelText, x + 116, y + 75, { width: 128, height: 26, ellipsis: true, lineGap: 1 });
+            // Row 2: Serial Number (Takes the place of Asset ID in the right details panel)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('SERIAL NUMBER', x + 116, y + 72, { width: 128 });
+            doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(snDisplay, x + 116, y + 82, { width: 128, height: 13, ellipsis: true, lineBreak: false });
 
             // Divider 2
-            doc.moveTo(x + 116, y + 105).lineTo(x + 244, y + 105).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            doc.moveTo(x + 116, y + 101).lineTo(x + 244, y + 101).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-            // Field 3: User (Renamed from CURRENT ASSIGNMENT)
-            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('USER', x + 116, y + 110, { width: 128 });
+            // Row 3: User (Renamed from CURRENT ASSIGNMENT)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('USER', x + 116, y + 105, { width: 128 });
             doc.fontSize(8).fillColor('#1e293b').font('Helvetica-Bold')
-               .text(userDisplay, x + 116, y + 120, { width: 128, height: 18, ellipsis: true });
+               .text(userDisplay, x + 116, y + 115, { width: 128, height: 26, ellipsis: true });
 
           } else if (mode === 'BARCODE_ONLY') {
             // ==========================================

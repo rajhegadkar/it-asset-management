@@ -53,7 +53,7 @@ export const SettingsPage: React.FC = () => {
     padding: '6',
     pattern: '{PREFIX}-{CATEGORY}-{NUMBER:6}',
     barcodeType: 'CODE128',
-    stickerStyle: 'BOTH',
+    stickerStyle: 'QR_ONLY',
   });
 
   // Email Notification Settings
@@ -281,7 +281,7 @@ export const SettingsPage: React.FC = () => {
           padding: settingsMap.get('asset.padding') || '6',
           pattern: settingsMap.get('asset.pattern') || '{PREFIX}-{CATEGORY}-{NUMBER:6}',
           barcodeType: settingsMap.get('barcode.type') || 'CODE128',
-          stickerStyle: settingsMap.get('barcode.sticker_style') || 'BOTH',
+          stickerStyle: settingsMap.get('barcode.sticker_style') || 'QR_ONLY',
         });
       }
     } catch (e) {}
@@ -1081,7 +1081,7 @@ export const SettingsPage: React.FC = () => {
                   />
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Both QR & Barcode</span>
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">Standard</span>
+                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">Dual Format</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
                     Dual format: Top-right QR Code for smartphone scans, plus bottom 1D Code128 Barcode for handheld laser scanners.
@@ -1101,10 +1101,10 @@ export const SettingsPage: React.FC = () => {
                   />
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100">QR Code Only</span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">Modern</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">Default / Modern</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    High-density QR Code on the left with Asset Tag and Serial Number directly below it. Clean design without 1D barcode bars.
+                    High-density QR Code on the left with Asset ID directly below it, and Equipment Model, Serial Number, and User on the right. Modern restructured sticker with zero barcodes.
                   </p>
                 </label>
 

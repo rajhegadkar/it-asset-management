@@ -471,9 +471,9 @@ export class AssetService {
     const brandingSetting = await prisma.systemSetting.findUnique({ where: { key: 'company.name' } });
     const currentCompanyName = brandingSetting?.value || org?.name || 'GLOBAL TECHNOLOGIES INC.';
 
-    // Resolve sticker format from database setting or query/body parameter
+    // Resolve sticker format from database setting or query/body parameter (defaults to modern QR_ONLY layout)
     const styleSetting = await prisma.systemSetting.findUnique({ where: { key: 'barcode.sticker_style' } });
-    const stickerStyle = (requestedStyle || styleSetting?.value || 'BOTH').toUpperCase();
+    const stickerStyle = (requestedStyle || styleSetting?.value || 'QR_ONLY').toUpperCase();
 
     const labelData = assets.map((a) => {
       const userName = a.currentEmployee

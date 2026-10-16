@@ -36,6 +36,7 @@ async function main() {
     { key: 'asset.pattern', value: '{PREFIX}-{CATEGORY}-{NUMBER:6}', group: 'ASSET_NUMBERING' },
     { key: 'barcode.type', value: 'CODE128', group: 'BARCODE' },
     { key: 'barcode.include_logo', value: 'true', group: 'BARCODE' },
+    { key: 'barcode.sticker_style', value: 'QR_ONLY', group: 'BARCODE' },
     { key: 'warranty.alert_days', value: '90,30,7', group: 'NOTIFICATIONS' },
     { key: 'maintenance.preventive_interval_days', value: '90', group: 'SLA' },
   ];
