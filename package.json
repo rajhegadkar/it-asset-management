@@ -1,7 +1,7 @@
 {
   "name": "it-asset-management-suite",
-  "version": "2.1.0",
-  "description": "Enterprise IT Asset Management Platform (Release v2.1.0)",
+  "version": "2.2.0",
+  "description": "Enterprise IT Asset Management Platform (Release v2.2.0)",
   "private": true,
   "workspaces": [
     "backend",
@@ -12,8 +12,8 @@
   },
   "scripts": {
     "install:all": "npm --prefix backend install && npm --prefix frontend install",
-    "setup": "npm run install:all && npm run prisma:push && npm run prisma:seed",
-    "setup:prod": "npm run install:all && npm run build:backend && npm run build:frontend && npm run prisma:push && npm run prisma:seed",
+    "setup": "npm run install:all && npm run prisma:generate && npm run prisma:push && npm run prisma:seed",
+    "setup:prod": "npm run install:all && npm run prisma:generate && npm run prisma:push && npm run prisma:seed && npm run build:backend && npm run build:frontend",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build:backend": "npm --prefix backend run build",

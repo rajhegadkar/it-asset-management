@@ -1,7 +1,7 @@
 {
   "name": "it-asset-management-backend",
-  "version": "2.1.0",
-  "description": "Production-grade enterprise IT Asset Management API (Release v2.1.0)",
+  "version": "2.2.0",
+  "description": "Production-grade enterprise IT Asset Management API (Release v2.2.0)",
   "main": "dist/server.js",
   "engines": {
     "node": ">=18.0.0"

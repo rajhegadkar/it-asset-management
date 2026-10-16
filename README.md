@@ -1,13 +1,13 @@
-# 🏢 Enterprise IT Asset Management (ITAM) System — Release v1.0.0
+# 🏢 Enterprise IT Asset Management (ITAM) System — Release v2.2.0
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0--Official-blue.svg?style=flat-square)](package.json)
+[![Release](https://img.shields.io/badge/Release-v2.2.0--Official-blue.svg?style=flat-square)](https://github.com/rajhegadkar/it-asset-management/releases/tag/v2.2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-v18%20%7C%20v20%20%7C%20v22%20LTS-339933.svg?style=flat-square&logo=nodedotjs)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?style=flat-square&logo=react)](https://react.dev/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748.svg?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-58%2F58%20Passing%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
+[![Tests](https://img.shields.io/badge/Tests-88%2F88%20Passing%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7.svg?style=flat-square&logo=render)](https://it-asset-management-q6ey.onrender.com/)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhegadkar/it-asset-management)
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template?template=https://github.com/rajhegadkar/it-asset-management)
@@ -155,56 +155,56 @@ cd it-asset-management
 
 ---
 
-### Method 1: Windows 1-Click Launchers (Automated Setup)
+### 🚀 1-Touch Turnkey Setup (Windows & Linux / macOS)
 
-The repository includes intelligent 1-click startup scripts that automatically:
-1. Detect missing `.env` files and copy from `.env.example`.
-2. Install backend and frontend dependencies if not already installed.
-3. Push the Prisma database schema and seed the initial master data.
-4. Launch both servers and open your default browser to the web portal.
+This repository includes native, zero-config 1-Touch automated setup scripts that verify prerequisites, configure `.env`, install dependencies, initialize the embedded SQLite database, seed enterprise demo accounts, and compile the application.
 
-#### Option A: Command Prompt / Double-Click
-Double-click `start.bat` in Windows Explorer, or execute in Command Prompt:
+#### 🪟 Windows (1-Touch Setup)
+
+**Option A: Double-Click**  
+Double-click **`setup.bat`** in Windows Explorer. It will configure the system and offer to immediately start the platform.
+
+**Option B: Command Prompt / Terminal**  
 ```cmd
-start.bat
+setup.bat
 ```
 
-#### Option B: PowerShell
-Right-click `start.ps1` → *Run with PowerShell*, or execute in PowerShell:
+**Option C: PowerShell**  
 ```powershell
-.\start.ps1
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Once started, the application opens automatically at **`http://localhost:5173`**.
+> **To launch the platform anytime on Windows:**  
+> Run **`start.bat`** or **`.\start.ps1`**. This starts both servers and opens `http://localhost:5173` in your browser.
 
 ---
 
-### Method 2: Standard Command Line (Windows / macOS / Linux)
+#### 🐧 Linux & 🍎 macOS (1-Touch Setup)
 
-#### 1. Automated Setup (Install & Seed)
+Open your terminal in the cloned directory and run:
+
 ```bash
-# Copy backend environment configuration
-cp backend/.env.example backend/.env
-
-# Run one-command automated setup (installs packages, migrates schema & seeds demo records)
-npm run setup
+chmod +x setup.sh start.sh
+./setup.sh
 ```
-*(On Windows PowerShell, use `Copy-Item backend\.env.example backend\.env`)*
 
-#### 2. Start Development Servers
+> **To launch the platform anytime on Linux/macOS:**  
+> Run **`./start.sh`**. Press `Ctrl+C` to cleanly terminate both services when done.
+
+---
+
+#### 💻 Platform-Independent npm Setup (All Operating Systems)
+
 ```bash
-# Terminal 1: Start Backend API (Port 5000)
+# 1. Automated one-command setup (installs all packages, migrates schema & seeds demo records)
+npm run setup
+
+# 2. Start development servers
+# Terminal 1: Backend API (Port 5000)
 npm run dev:backend
 
-# Terminal 2: Start Frontend Web Portal (Port 5173)
+# Terminal 2: Frontend Web Portal (Port 5173)
 npm run dev:frontend
-```
-
-#### 3. Production Unified Mode (Single Port 5000)
-To serve both the frontend React app and backend REST API together on a single port (**`http://localhost:5000`**):
-```bash
-npm run build
-npm start
 ```
 
 ---

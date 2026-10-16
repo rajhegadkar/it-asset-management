@@ -1,69 +1,67 @@
 @echo off
-setlocal
-title Launching IT Asset Management Enterprise v1.0
-echo ===================================================================
-echo   IT Asset Management Platform v1.0 (Enterprise Edition)
-echo ===================================================================
+setlocal enabledelayedexpansion
+title IT Asset Management Platform - Launcher (v2.2.0)
+
+color 0B
+echo ===============================================================================
+echo     IT ASSET MANAGEMENT ENTERPRISE PLATFORM (v2.2.0)
+echo                         SYSTEM LAUNCHER
+echo ===============================================================================
 echo.
 
 cd /d "%~dp0"
 
-:: 1. Check Backend .env
-if not exist "backend\.env" (
-    echo [SETUP] backend\.env not found. Creating from backend\.env.example...
-    copy backend\.env.example backend\.env >nul
-)
-
-:: 2. Check Backend Dependencies
+:: Check if initial setup has been run
 if not exist "backend\node_modules" (
-    echo [SETUP] Installing backend dependencies...
-    pushd backend
-    call npm.cmd install
-    popd
+    echo [NOTICE] Dependencies not installed. Running 1-Touch Setup first...
+    call setup.bat
+    exit /b
 )
 
-:: 3. Check Frontend Dependencies
-if not exist "frontend\node_modules" (
-    echo [SETUP] Installing frontend dependencies...
-    pushd frontend
-    call npm.cmd install
-    popd
-)
-
-:: 4. Check Database
 if not exist "backend\prisma\dev.db" (
-    echo [SETUP] Initializing database schema and seeding demo data...
-    pushd backend
-    call npx.cmd prisma db push
-    call npx.cmd prisma db seed
-    popd
+    echo [NOTICE] Embedded database not initialized. Running 1-Touch Setup...
+    call setup.bat
+    exit /b
 )
 
-:: 5. Start Backend API Server
-echo Starting Backend API Server (Port 5000)...
-start "ITAM Backend Server (Port 5000)" cmd /k "cd backend && npm.cmd start"
+:: Ensure .env exists
+if not exist "backend\.env" (
+    if exist "backend\.env.example" copy "backend\.env.example" "backend\.env" >nul
+)
 
-:: 6. Start Frontend Web Portal
-echo Starting Frontend Web Portal (Port 5173)...
-start "ITAM Frontend Web (Port 5173)" cmd /k "cd frontend && npm.cmd run dev"
+:: Start Backend API Server
+echo [1/2] Starting Backend API Server on Port 5000...
+start "ITAM Backend API (Port 5000)" cmd /k "cd /d "%~dp0backend" && npm run dev"
+
+:: Start Frontend Web Portal
+echo [2/2] Starting Frontend Web Portal on Port 5173...
+start "ITAM Frontend Portal (Port 5173)" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
 echo.
-echo Waiting 5 seconds for services to initialize...
-timeout /t 5 /nobreak >nul
+echo Waiting 4 seconds for services to bind to ports...
+timeout /t 4 /nobreak >nul
 
 echo Opening browser at http://localhost:5173 ...
 start http://localhost:5173
 
+color 0A
 echo.
-echo ===================================================================
-echo Services are now live!
-echo - Web Application: http://localhost:5173
-echo - Backend API:     http://localhost:5000/api/v1
+echo ===============================================================================
+echo                      SERVICES ARE NOW LIVE & ACTIVE!
+echo ===============================================================================
 echo.
-echo Demo Accounts:
-echo - Super Admin: admin@acme-corp.com      / Admin@123456
-echo - IT Admin:    itadmin@acme-corp.com    / Admin@123456
-echo - Support:     support@acme-corp.com    / Admin@123456
-echo - Employee:    john.doe@acme-corp.com   / User@123456
-echo ===================================================================
+echo   ➜ Frontend Web Portal:   http://localhost:5173
+echo   ➜ Backend REST API:       http://localhost:5000
+echo   ➜ Interactive Swagger:    http://localhost:5000/api/docs
+echo   ➜ API Health Check:       http://localhost:5000/api/v1/health
+echo.
+echo   Demo Administrator Accounts:
+echo   -----------------------------------------------------------------------------
+echo   - Super Admin:    admin@acme-corp.com      /  Admin@123456
+echo   - IT Admin:       itadmin@acme-corp.com    /  Admin@123456
+echo   - Employee:       john.doe@acme-corp.com   /  User@123456
+echo ===============================================================================
+echo.
+echo Keep this window open or close it when done. To stop, close the server windows.
+echo.
 pause
