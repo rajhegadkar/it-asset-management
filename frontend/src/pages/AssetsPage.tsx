@@ -199,6 +199,55 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
+  // Selection state for bulk label printing and actions
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [generatingLabels, setGeneratingLabels] = useState(false);
+
+  const handleToggleSelectAll = () => {
+    if (selectedAssetIds.length === assets.length) {
+      setSelectedAssetIds([]);
+    } else {
+      setSelectedAssetIds(assets.map((a) => a.id));
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedAssetIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleDownloadLabels = async (options: { all?: boolean; assetIds?: string[] }) => {
+    setGeneratingLabels(true);
+    try {
+      const payload = options.all ? { all: true } : { assetIds: options.assetIds };
+      const res = await api.post('/assets/labels/pdf', payload, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = options.all
+        ? 'complete-fleet-asset-labels.pdf'
+        : `selected-${options.assetIds?.length}-asset-labels.pdf`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess(
+        options.all
+          ? 'Complete inventory asset labels sheet generated successfully'
+          : `${options.assetIds?.length} asset labels generated successfully`
+      );
+    } catch (err) {
+      console.error('Label generation error:', err);
+      showError('Failed to generate printable asset labels');
+    } finally {
+      setGeneratingLabels(false);
+    }
+  };
+
   const handleDownloadLabel = async (assetId: string, assetTag: string) => {
     try {
       const res = await api.post(
@@ -209,11 +258,12 @@ export const AssetsPage: React.FC = () => {
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `label-${assetTag}.pdf`);
+      link.setAttribute('download', `asset-label-${assetTag}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      showSuccess(`Barcode label downloaded for ${assetTag}`);
+      window.URL.revokeObjectURL(url);
+      showSuccess(`Asset label downloaded for ${assetTag}`);
     } catch {
       showError('Failed to generate label');
     }
@@ -240,7 +290,7 @@ export const AssetsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             IT Asset Master Registry
@@ -257,13 +307,35 @@ export const AssetsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedAssetIds.length > 0 && (
+            <button
+              onClick={() => handleDownloadLabels({ assetIds: selectedAssetIds })}
+              disabled={generatingLabels}
+              className="h-9 flex items-center space-x-1.5 px-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              title="Generate printable labels for selected assets"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>{generatingLabels ? 'Generating...' : `Print Selected (${selectedAssetIds.length})`}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => handleDownloadLabels({ all: true })}
+            disabled={generatingLabels}
+            className="h-9 flex items-center space-x-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 disabled:opacity-50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+            title="Generate printable labels for complete fleet inventory"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>{generatingLabels ? 'Generating...' : 'Print All Labels'}</span>
+          </button>
+
           <button
             onClick={() => {
               setTrackTag('');
               setTrackerOpen(true);
             }}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            className="h-9 flex items-center space-x-1.5 px-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
           >
             <Tag className="w-3.5 h-3.5" />
             <span>Track Asset</span>
@@ -271,7 +343,7 @@ export const AssetsPage: React.FC = () => {
 
           <button
             onClick={() => setImportModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm transition-colors"
+            className="h-9 flex items-center space-x-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>Import</span>
@@ -279,7 +351,7 @@ export const AssetsPage: React.FC = () => {
 
           <button
             onClick={() => handleExport('xlsx')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm transition-colors"
+            className="h-9 flex items-center space-x-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export</span>
@@ -287,7 +359,7 @@ export const AssetsPage: React.FC = () => {
 
           <button
             onClick={() => setCreateModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            className="h-9 flex items-center space-x-1.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New Asset</span>
@@ -297,15 +369,15 @@ export const AssetsPage: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by Asset ID, Tag, Serial Number, Model, or Assigned Employee..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -313,7 +385,7 @@ export const AssetsPage: React.FC = () => {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -326,7 +398,7 @@ export const AssetsPage: React.FC = () => {
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Departments</option>
               {departments.map((d) => (
@@ -339,7 +411,7 @@ export const AssetsPage: React.FC = () => {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="AVAILABLE">Available</option>
@@ -351,7 +423,7 @@ export const AssetsPage: React.FC = () => {
 
             <button
               type="submit"
-              className="px-4 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold"
+              className="h-9 px-4 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
             >
               Apply Filter
             </button>
@@ -370,28 +442,37 @@ export const AssetsPage: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase tracking-wider font-semibold">
               <tr>
-                <th className="py-3 px-4">Asset ID / Tag</th>
-                <th className="py-3 px-4">Equipment Model</th>
-                <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4">Current Custody</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Condition</th>
-                <th className="py-3 px-4">Cost / Value</th>
-                <th className="py-3 px-4">Warranty End</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-3 w-10 text-center align-middle">
+                  <input
+                    type="checkbox"
+                    checked={assets.length > 0 && selectedAssetIds.length === assets.length}
+                    onChange={handleToggleSelectAll}
+                    title="Select all assets on current page"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
+                <th className="py-3 px-4 align-middle">Asset ID / Tag</th>
+                <th className="py-3 px-4 align-middle">Equipment Model</th>
+                <th className="py-3 px-4 align-middle">Category</th>
+                <th className="py-3 px-4 align-middle">Current Custody</th>
+                <th className="py-3 px-4 align-middle">Status</th>
+                <th className="py-3 px-4 align-middle">Condition</th>
+                <th className="py-3 px-4 align-middle">Cost / Value</th>
+                <th className="py-3 px-4 align-middle">Warranty End</th>
+                <th className="py-3 px-4 text-right align-middle">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                  <td colSpan={10} className="py-12 text-center text-slate-500 align-middle">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
                     <span>Loading assets inventory...</span>
                   </td>
                 </tr>
               ) : assets.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                  <td colSpan={10} className="py-12 text-center text-slate-500 align-middle">
                     No assets found matching the specified search criteria.
                   </td>
                 </tr>
@@ -399,9 +480,19 @@ export const AssetsPage: React.FC = () => {
                 assets.map((asset) => (
                   <tr
                     key={asset.id}
-                    className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                    className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors ${
+                      selectedAssetIds.includes(asset.id) ? 'bg-blue-50/40 dark:bg-blue-950/20' : ''
+                    }`}
                   >
-                    <td className="py-3.5 px-4 font-mono">
+                    <td className="py-3.5 px-3 text-center align-middle">
+                      <input
+                        type="checkbox"
+                        checked={selectedAssetIds.includes(asset.id)}
+                        onChange={() => handleToggleSelectOne(asset.id)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </td>
+                    <td className="py-3.5 px-4 font-mono align-middle">
                       <Link
                         to={`/assets/${asset.id}`}
                         className="font-bold text-blue-600 dark:text-blue-400 hover:underline block"
@@ -425,7 +516,7 @@ export const AssetsPage: React.FC = () => {
                         </button>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 align-middle">
                       <span className="font-semibold text-slate-900 dark:text-slate-100 block">
                         {asset.name}
                       </span>
@@ -433,10 +524,10 @@ export const AssetsPage: React.FC = () => {
                         S/N: {asset.serialNumber}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 align-middle">
                       {asset.category?.name || 'Computing'}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 align-middle">
                       {asset.currentEmployee ? (
                         <div>
                           <span className="font-semibold text-slate-800 dark:text-slate-200 block">
@@ -450,54 +541,56 @@ export const AssetsPage: React.FC = () => {
                         <span className="text-slate-400 italic">Unassigned (In Stock)</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 align-middle">
                       <StatusBadge status={asset.status} />
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 align-middle">
                       <StatusBadge status={asset.condition} type="condition" />
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap align-middle">
                       {asset.purchaseCost !== undefined && asset.purchaseCost !== null ? (
                         formatCurrency(asset.purchaseCost)
                       ) : (
                         <span className="text-slate-400 font-normal">--</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px] align-middle">
                       {asset.warrantyEnd ? new Date(asset.warrantyEnd).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="py-3.5 px-4 text-right space-x-1">
-                      <button
-                        onClick={() => {
-                          setTrackTag(asset.assetTag || asset.assetId);
-                          setTrackerOpen(true);
-                        }}
-                        title="Track Asset Lifecycle"
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-block"
-                      >
-                        <Tag className="w-4 h-4" />
-                      </button>
-                      <Link
-                        to={`/assets/${asset.id}`}
-                        title="View Details"
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-block"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleOpenEditModal(asset)}
-                        title="Edit Asset & Custom Specifications"
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-block"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDownloadLabel(asset.id, asset.assetTag)}
-                        title="Print Barcode Label"
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-block"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
+                    <td className="py-3.5 px-4 text-right align-middle">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => {
+                            setTrackTag(asset.assetTag || asset.assetId);
+                            setTrackerOpen(true);
+                          }}
+                          title="Track Asset Lifecycle"
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          <Tag className="w-4 h-4" />
+                        </button>
+                        <Link
+                          to={`/assets/${asset.id}`}
+                          title="View Details"
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleOpenEditModal(asset)}
+                          title="Edit Asset & Custom Specifications"
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadLabel(asset.id, asset.assetTag)}
+                          title="Print Asset Label"
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -122,14 +122,25 @@ export class AssetController {
 
   static async generateLabelsPdf(req: Request, res: Response, next: NextFunction) {
     try {
-      const assetIds = (req.body.assetIds || [req.params.id]).filter(Boolean);
-      if (assetIds.length === 0) {
-        return ApiResponse.error(res, 'Asset IDs are required', 400);
+      const all = req.body?.all === true || req.query?.all === 'true' || req.body?.assetIds === 'all';
+      let assetIds: string[] = [];
+
+      if (Array.isArray(req.body?.assetIds)) {
+        assetIds = req.body.assetIds.filter(Boolean);
+      } else if (typeof req.query?.assetIds === 'string') {
+        assetIds = req.query.assetIds.split(',').map((s) => s.trim()).filter(Boolean);
+      } else if (req.params?.id) {
+        assetIds = [req.params.id];
       }
 
-      const pdfBuffer = await AssetService.generateLabelsPdf(assetIds);
+      if (!all && assetIds.length === 0) {
+        return ApiResponse.error(res, 'Asset IDs or all=true is required to generate labels', 400);
+      }
+
+      const requestedStyle = (req.body?.style || req.query?.style as string) || undefined;
+      const pdfBuffer = await AssetService.generateLabelsPdf(assetIds, all, requestedStyle);
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="asset-labels.pdf"');
+      res.setHeader('Content-Disposition', 'attachment; filename="asset-labels-v2.pdf"');
       return res.send(pdfBuffer);
     } catch (error) {
       next(error);

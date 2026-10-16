@@ -76,7 +76,7 @@ app.get('/api', (req, res) => {
   res.json({
     name: 'Enterprise IT Asset Management (ITAM) API',
     status: 'ONLINE',
-    version: '1.0.0',
+    version: '2.0.0',
     documentation: '/api/docs',
     apiBase: '/api/v1',
   });
@@ -99,7 +99,7 @@ app.get('/', (req, res) => {
     return res.json({
       name: 'Enterprise IT Asset Management (ITAM) API',
       status: 'ONLINE',
-      version: '1.0.0',
+      version: '2.0.0',
       documentation: '/api/docs',
       apiBase: '/api/v1',
     });
@@ -110,7 +110,7 @@ app.get('/', (req, res) => {
   return res.json({
     name: 'Enterprise IT Asset Management (ITAM) API',
     status: 'ONLINE',
-    version: '1.0.0',
+    version: '2.0.0',
     documentation: '/api/docs',
     apiBase: '/api/v1',
   });

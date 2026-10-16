@@ -38,6 +38,7 @@ assetRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), AssetController.cr
 assetRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), AssetController.updateAsset);
 assetRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), AssetController.archiveAsset);
 assetRouter.post('/labels/pdf', AssetController.generateLabelsPdf);
+assetRouter.get('/labels/pdf', AssetController.generateLabelsPdf);
 router.use('/assets', assetRouter);
 
 // --- Allocations, Returns, Transfers, Disposals ---

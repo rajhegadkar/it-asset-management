@@ -430,32 +430,69 @@ export class AssetService {
   }
 
   /**
-   * Bulk generate printable labels PDF
+   * Bulk generate printable labels PDF (complete inventory or specific required assets)
    */
-  static async generateLabelsPdf(assetIds: string[]): Promise<Buffer> {
-    const assets = await prisma.asset.findMany({
-      where: { id: { in: assetIds } },
-      include: { category: true, organization: true },
-    });
+  static async generateLabelsPdf(assetIds?: string[], all?: boolean, requestedStyle?: string): Promise<Buffer> {
+    const isAll = all === true || (Array.isArray(assetIds) && assetIds.includes('all'));
+    
+    let assets;
+    if (isAll || !assetIds || assetIds.length === 0) {
+      assets = await prisma.asset.findMany({
+        where: { isArchived: false },
+        include: { 
+          category: true, 
+          organization: true,
+          department: true,
+          currentEmployee: true,
+        },
+        orderBy: { assetTag: 'asc' },
+      });
+    } else {
+      assets = await prisma.asset.findMany({
+        where: { 
+          id: { in: assetIds },
+          isArchived: false,
+        },
+        include: { 
+          category: true, 
+          organization: true,
+          department: true,
+          currentEmployee: true,
+        },
+        orderBy: { assetTag: 'asc' },
+      });
+    }
 
     if (assets.length === 0) {
-      throw { statusCode: 404, message: 'No assets found for the specified IDs', code: 'ASSETS_NOT_FOUND' };
+      throw { statusCode: 404, message: 'No assets found for the specified criteria', code: 'ASSETS_NOT_FOUND' };
     }
 
     const org = await prisma.organization.findFirst();
     const brandingSetting = await prisma.systemSetting.findUnique({ where: { key: 'company.name' } });
-    const currentCompanyName = brandingSetting?.value || org?.name || 'IT Asset Management';
+    const currentCompanyName = brandingSetting?.value || org?.name || 'GLOBAL TECHNOLOGIES INC.';
 
-    const labelData = assets.map((a) => ({
-      assetId: a.assetId,
-      assetTag: a.assetTag,
-      serialNumber: a.serialNumber,
-      name: a.name,
-      categoryName: a.category.name,
-      companyName: currentCompanyName,
-    }));
+    // Resolve sticker format from database setting or query/body parameter
+    const styleSetting = await prisma.systemSetting.findUnique({ where: { key: 'barcode.sticker_style' } });
+    const stickerStyle = (requestedStyle || styleSetting?.value || 'BOTH').toUpperCase();
 
-    return await PdfService.generateAssetLabelSheet(labelData);
+    const labelData = assets.map((a) => {
+      const userName = a.currentEmployee
+        ? `${a.currentEmployee.firstName} ${a.currentEmployee.lastName}`.trim()
+        : 'Unassigned (In Stock)';
+      return {
+        assetId: a.assetId,
+        assetTag: a.assetTag,
+        serialNumber: a.serialNumber || 'N/A',
+        name: a.name || a.model || 'Hardware Asset',
+        categoryName: a.category?.name || 'General',
+        departmentName: a.department?.name || 'IT',
+        userName,
+        custodianName: userName,
+        companyName: currentCompanyName,
+      };
+    });
+
+    return await PdfService.generateAssetLabelSheet(labelData, stickerStyle);
   }
 
   /**

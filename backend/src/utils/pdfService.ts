@@ -256,8 +256,12 @@ export class PdfService {
       serialNumber: string;
       name: string;
       categoryName: string;
+      departmentName?: string;
+      custodianName?: string;
+      userName?: string;
       companyName: string;
-    }>
+    }>,
+    stickerStyle: string = 'BOTH'
   ): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -268,24 +272,29 @@ export class PdfService {
         doc.on('end', () => resolve(Buffer.concat(buffers)));
 
         // A4 Grid: 2 columns x 4 rows per page = 8 labels per page
-        // Clean layout: label width 260pt, height 165pt
+        // Clean layout: label width 260pt, height 164pt
         const labelWidth = 260;
-        const labelHeight = 165;
+        const labelHeight = 164;
         const startX = 28;
-        const startY = 30;
+        const startY = 32;
         const gapX = 18;
         const gapY = 24;
 
         let col = 0;
         let row = 0;
 
+        const mode = (stickerStyle || 'BOTH').toUpperCase();
+
         for (let i = 0; i < assets.length; i++) {
           const a = assets[i];
           const x = startX + col * (labelWidth + gapX);
           const y = startY + row * (labelHeight + gapY);
 
-          const orgName = (a.companyName || 'IT ASSET MANAGEMENT').trim().toUpperCase();
+          const orgName = (a.companyName || 'GLOBAL TECHNOLOGIES INC.').trim().toUpperCase();
           const tagDisplay = a.assetTag || a.assetId;
+          const snDisplay = (a.serialNumber && a.serialNumber !== 'N/A') ? a.serialNumber : 'NO SERIAL';
+          const userDisplay = a.userName || a.custodianName || 'Unassigned (In Stock)';
+          const modelText = a.name || 'Hardware Asset';
 
           // 1. Label Outer Border
           doc.roundedRect(x, y, labelWidth, labelHeight, 4).lineWidth(0.75).strokeColor('#0f172a').stroke();
@@ -300,60 +309,166 @@ export class PdfService {
           doc.fontSize(6.5).fillColor('#94a3b8').font('Helvetica-Bold')
              .text('IT ASSET', x + labelWidth - 55, y + 8, { width: 47, align: 'right', lineBreak: false });
 
-          // 3. Middle Section: Information (Left) & QR Code (Right)
-          // Details Stack (Left: x + 8 to x + 180, width 172 pt)
-          // Line 1: Asset Tag in bold blue
-          doc.fontSize(9.5).fillColor('#1d4ed8').font('Helvetica-Bold')
-             .text(tagDisplay, x + 8, y + 29, { width: 170, height: 12, lineBreak: false, ellipsis: true });
+          if (mode === 'QR_ONLY') {
+            // ==========================================
+            // STYLE: QR CODE ONLY (No 1D Barcode)
+            // ==========================================
+            // Left Hero QR Box (Centered in Left Column)
+            try {
+              const qrBuffer = await BarcodeGenerator.generateQrCodeBuffer(tagDisplay);
+              doc.roundedRect(x + 16, y + 28, 76, 76, 4).fill('#ffffff').strokeColor('#cbd5e1').lineWidth(0.5).stroke();
+              doc.image(qrBuffer, x + 19, y + 31, { width: 70, height: 70 });
+            } catch {
+              doc.roundedRect(x + 16, y + 28, 76, 76, 4).fill('#ffffff').strokeColor('#cbd5e1').lineWidth(0.5).stroke();
+            }
 
-          // Line 2: Equipment Name / Model
-          doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
-             .text(a.name || 'Hardware Asset', x + 8, y + 43, { width: 170, height: 11, lineBreak: false, ellipsis: true });
+            // Directly below QR Code: ONLY Asset ID (Centered horizontally with QR box)
+            doc.roundedRect(x + 12, y + 110, 84, 34, 4).fill('#eff6ff').strokeColor('#bfdbfe').lineWidth(0.75).stroke();
+            doc.fontSize(6).fillColor('#3b82f6').font('Helvetica-Bold').text('ASSET ID', x + 12, y + 115, { width: 84, align: 'center', lineBreak: false });
+            doc.fontSize(9).fillColor('#1d4ed8').font('Helvetica-Bold').text(tagDisplay, x + 12, y + 125, { width: 84, align: 'center', height: 13, lineBreak: false, ellipsis: true });
 
-          // Line 3: Serial Number
-          doc.fontSize(7).fillColor('#475569').font('Helvetica')
-             .text(`S/N: ${a.serialNumber || 'N/A'}`, x + 8, y + 56, { width: 170, height: 10, lineBreak: false, ellipsis: true });
+            // Vertical Divider between columns
+            doc.moveTo(x + 104, y + 28).lineTo(x + 104, y + 146).strokeColor('#e2e8f0').lineWidth(0.75).stroke();
 
-          // Line 4: Category
-          doc.fontSize(7).fillColor('#475569').font('Helvetica')
-             .text(`Cat: ${a.categoryName || 'General'}`, x + 8, y + 68, { width: 170, height: 10, lineBreak: false, ellipsis: true });
+            // Right Details Panel (Symmetric 8pt margin to right edge)
+            doc.roundedRect(x + 108, y + 28, 144, 118, 4).fill('#f8fafc').strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-          // Line 5: Owner / Entity
-          doc.fontSize(6.5).fillColor('#64748b').font('Helvetica')
-             .text(`Owner: ${orgName}`, x + 8, y + 80, { width: 170, height: 10, lineBreak: false, ellipsis: true });
+            // Field 1: Serial Number (Replaced Asset ID as requested)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('SERIAL NUMBER', x + 116, y + 33, { width: 128 });
+            doc.fontSize(8.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(snDisplay, x + 116, y + 43, { width: 128, height: 12, ellipsis: true, lineBreak: false });
 
-          // Right QR Code: clean 64x64 box from x + 186 to x + 252
-          try {
-            const qrBuffer = await BarcodeGenerator.generateQrCodeBuffer(tagDisplay);
-            doc.roundedRect(x + 186, y + 28, 64, 62, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-            doc.image(qrBuffer, x + 189, y + 30, { width: 58, height: 58 });
-          } catch {
-            doc.roundedRect(x + 186, y + 28, 64, 62, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            // Divider 1
+            doc.moveTo(x + 116, y + 60).lineTo(x + 244, y + 60).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+
+            // Field 2: Equipment / Model
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('EQUIPMENT / MODEL', x + 116, y + 65, { width: 128 });
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(modelText, x + 116, y + 75, { width: 128, height: 26, ellipsis: true, lineGap: 1 });
+
+            // Divider 2
+            doc.moveTo(x + 116, y + 105).lineTo(x + 244, y + 105).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+
+            // Field 3: User (Renamed from CURRENT ASSIGNMENT)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('USER', x + 116, y + 110, { width: 128 });
+            doc.fontSize(8).fillColor('#1e293b').font('Helvetica-Bold')
+               .text(userDisplay, x + 116, y + 120, { width: 128, height: 18, ellipsis: true });
+
+          } else if (mode === 'BARCODE_ONLY') {
+            // ==========================================
+            // STYLE: 1D BARCODE ONLY (No QR Code)
+            // ==========================================
+            let curY = y + 28;
+
+            // Line 1: Asset Tag in bold blue
+            doc.fontSize(10.5).fillColor('#1d4ed8').font('Helvetica-Bold')
+               .text(tagDisplay, x + 10, curY, { width: labelWidth - 20, height: 13, lineBreak: false, ellipsis: true });
+            curY += 14;
+
+            // Line 2: Equipment Model Name (Full width, handles lengthy models across up to 2 lines)
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold');
+            const rawModelH = doc.heightOfString(modelText, { width: labelWidth - 20, lineGap: 0.5 });
+            const modelH = Math.min(rawModelH, 18);
+            doc.text(modelText, x + 10, curY, { width: labelWidth - 20, height: modelH, lineGap: 0.5, ellipsis: true });
+            curY += modelH + 3;
+
+            // Line 3: Grid - Left: S/N, Right: Category
+            doc.fontSize(7).fillColor('#475569').font('Helvetica')
+               .text(`S/N: ${snDisplay}`, x + 10, curY, { width: 120, height: 9.5, lineBreak: false, ellipsis: true })
+               .text(`Cat: ${a.categoryName || 'General'}`, x + 135, curY, { width: 115, height: 9.5, lineBreak: false, ellipsis: true });
+            curY += 11;
+
+            // Line 4: Grid - Left: User, Right: Asset ID
+            doc.fontSize(7).fillColor('#475569').font('Helvetica')
+               .text(`User: ${userDisplay}`, x + 10, curY, { width: 130, height: 9.5, lineBreak: false, ellipsis: true })
+               .text(`ID: ${a.assetId || tagDisplay}`, x + 145, curY, { width: 105, height: 9.5, lineBreak: false, ellipsis: true });
+
+            // Divider Line
+            doc.moveTo(x + 8, y + 96).lineTo(x + labelWidth - 8, y + 96).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+
+            // 1D Barcode Section (Code128)
+            try {
+              const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, 'code128', {
+                includetext: false,
+                height: 8,
+                scale: 3,
+              });
+              doc.image(barcodeBuffer, x + 16, y + 100, { width: labelWidth - 32, height: 25 });
+            } catch {
+              doc.fontSize(8.5).fillColor('#000').font('Helvetica-Bold')
+                 .text(`* ${tagDisplay} *`, x + 10, y + 105, { width: labelWidth - 20, align: 'center', lineBreak: false });
+            }
+
+            // Human-readable barcode text centered below bars
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(`* ${tagDisplay} *`, x + 8, y + 127, { width: labelWidth - 16, align: 'center', height: 10, lineBreak: false });
+
+          } else {
+            // ==========================================
+            // STYLE: BOTH (Default - QR Code + 1D Barcode)
+            // ==========================================
+            // Right QR Code Box
+            try {
+              const qrBuffer = await BarcodeGenerator.generateQrCodeBuffer(tagDisplay);
+              doc.roundedRect(x + 180, y + 27, 70, 66, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+              doc.image(qrBuffer, x + 185, y + 30, { width: 60, height: 60 });
+            } catch {
+              doc.roundedRect(x + 180, y + 27, 70, 66, 3).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+            }
+
+            // Left Text Column (Width: 168pt, with dynamic lengthy model alignment)
+            let curY = y + 28;
+
+            // Line 1: Asset Tag in bold blue
+            doc.fontSize(10).fillColor('#1d4ed8').font('Helvetica-Bold')
+               .text(tagDisplay, x + 8, curY, { width: 168, height: 12, lineBreak: false, ellipsis: true });
+            curY += 13.5;
+
+            // Line 2: Equipment Model Name (Gracefully handles lengthy models across up to 2 lines)
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold');
+            const rawModelH = doc.heightOfString(modelText, { width: 168, lineGap: 0.5 });
+            const modelH = Math.min(rawModelH, 18); // Clamp to at most 2 lines
+            doc.text(modelText, x + 8, curY, { width: 168, height: modelH, lineGap: 0.5, ellipsis: true });
+            curY += modelH + 2.5;
+
+            // Line 3: Serial Number
+            doc.fontSize(7).fillColor('#475569').font('Helvetica')
+               .text(`S/N: ${snDisplay}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
+            curY += 10.5;
+
+            // Line 4: Category
+            doc.fontSize(7).fillColor('#475569').font('Helvetica')
+               .text(`Cat: ${a.categoryName || 'General'}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
+            curY += 10.5;
+
+            // Line 5: User (replaces Owner)
+            doc.fontSize(7).fillColor('#475569').font('Helvetica')
+               .text(`User: ${userDisplay}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
+
+            // Divider Line before Barcode
+            doc.moveTo(x + 8, y + 97).lineTo(x + labelWidth - 8, y + 97).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+
+            // 1D Barcode Section (Code128)
+            try {
+              const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, 'code128', {
+                includetext: false,
+                height: 7,
+                scale: 3,
+              });
+              doc.image(barcodeBuffer, x + 18, y + 101, { width: labelWidth - 36, height: 24 });
+            } catch {
+              doc.fontSize(8.5).fillColor('#000').font('Helvetica-Bold')
+                 .text(`* ${tagDisplay} *`, x + 10, y + 106, { width: labelWidth - 20, align: 'center', lineBreak: false });
+            }
+
+            // Human-readable barcode text centered below bars
+            doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
+               .text(`* ${tagDisplay} *`, x + 8, y + 127, { width: labelWidth - 16, align: 'center', height: 10, lineBreak: false });
           }
-
-          // 4. Subtle Divider Line before Barcode
-          doc.moveTo(x + 8, y + 96).lineTo(x + labelWidth - 8, y + 96).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-
-          // 5. 1D Barcode Section (Cleanly bounded, zero collisions)
-          try {
-            const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, 'code128', {
-              includetext: false,
-              height: 7,
-              scale: 3,
-            });
-            doc.image(barcodeBuffer, x + 25, y + 100, { width: labelWidth - 50, height: 22 });
-          } catch {
-            doc.fontSize(8.5).fillColor('#000').font('Helvetica-Bold')
-               .text(`* ${tagDisplay} *`, x + 10, y + 106, { width: labelWidth - 20, align: 'center', lineBreak: false });
-          }
-
-          // Human-readable barcode text centered below bars
-          doc.fontSize(7.5).fillColor('#0f172a').font('Helvetica-Bold')
-             .text(`* ${tagDisplay} *`, x + 8, y + 125, { width: labelWidth - 16, align: 'center', height: 10, lineBreak: false });
 
           // Security tag notice at the very bottom
           doc.fontSize(5.5).fillColor('#64748b').font('Helvetica')
-             .text(`PROPERTY OF ${orgName} • DO NOT REMOVE`, x + 8, y + 145, { width: labelWidth - 16, align: 'center', height: 9, lineBreak: false, ellipsis: true });
+             .text(`PROPERTY OF ${orgName} • DO NOT REMOVE`, x + 8, y + 150, { width: labelWidth - 16, align: 'center', height: 8, lineBreak: false, ellipsis: true });
 
           col++;
           if (col >= 2) {

@@ -53,6 +53,7 @@ export const SettingsPage: React.FC = () => {
     padding: '6',
     pattern: '{PREFIX}-{CATEGORY}-{NUMBER:6}',
     barcodeType: 'CODE128',
+    stickerStyle: 'BOTH',
   });
 
   // Email Notification Settings
@@ -280,6 +281,7 @@ export const SettingsPage: React.FC = () => {
           padding: settingsMap.get('asset.padding') || '6',
           pattern: settingsMap.get('asset.pattern') || '{PREFIX}-{CATEGORY}-{NUMBER:6}',
           barcodeType: settingsMap.get('barcode.type') || 'CODE128',
+          stickerStyle: settingsMap.get('barcode.sticker_style') || 'BOTH',
         });
       }
     } catch (e) {}
@@ -433,6 +435,7 @@ export const SettingsPage: React.FC = () => {
         { key: 'asset.padding', value: numbering.padding, group: 'ASSET_NUMBERING' },
         { key: 'asset.pattern', value: numbering.pattern, group: 'ASSET_NUMBERING' },
         { key: 'barcode.type', value: numbering.barcodeType, group: 'BARCODE' },
+        { key: 'barcode.sticker_style', value: numbering.stickerStyle, group: 'BARCODE' },
       ]);
       setSaveSuccess(true);
       showSuccess('Asset numbering rules saved successfully!');
@@ -1050,11 +1053,81 @@ export const SettingsPage: React.FC = () => {
               <select
                 value={numbering.barcodeType}
                 onChange={(e) => setNumbering({ ...numbering, barcodeType: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs"
               >
                 <option value="CODE128">Code 128 (High Density Alphanumeric)</option>
                 <option value="CODE39">Code 39 (Standard Industrial)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Printable Asset Sticker Code Format
+              </label>
+              <p className="text-[11px] text-slate-500 mb-2.5">
+                Choose the code symbologies to render on generated single and bulk asset labels.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className={`p-3 rounded-xl border cursor-pointer flex flex-col justify-between transition-all ${
+                  numbering.stickerStyle === 'BOTH' ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                }`}>
+                  <input
+                    type="radio"
+                    name="stickerStyle"
+                    value="BOTH"
+                    checked={numbering.stickerStyle === 'BOTH'}
+                    onChange={(e) => setNumbering({ ...numbering, stickerStyle: e.target.value })}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Both QR & Barcode</span>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">Standard</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Dual format: Top-right QR Code for smartphone scans, plus bottom 1D Code128 Barcode for handheld laser scanners.
+                  </p>
+                </label>
+
+                <label className={`p-3 rounded-xl border cursor-pointer flex flex-col justify-between transition-all ${
+                  numbering.stickerStyle === 'QR_ONLY' ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                }`}>
+                  <input
+                    type="radio"
+                    name="stickerStyle"
+                    value="QR_ONLY"
+                    checked={numbering.stickerStyle === 'QR_ONLY'}
+                    onChange={(e) => setNumbering({ ...numbering, stickerStyle: e.target.value })}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">QR Code Only</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">Modern</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    High-density QR Code on the left with Asset Tag and Serial Number directly below it. Clean design without 1D barcode bars.
+                  </p>
+                </label>
+
+                <label className={`p-3 rounded-xl border cursor-pointer flex flex-col justify-between transition-all ${
+                  numbering.stickerStyle === 'BARCODE_ONLY' ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                }`}>
+                  <input
+                    type="radio"
+                    name="stickerStyle"
+                    value="BARCODE_ONLY"
+                    checked={numbering.stickerStyle === 'BARCODE_ONLY'}
+                    onChange={(e) => setNumbering({ ...numbering, stickerStyle: e.target.value })}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">1D Barcode Only</span>
+                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">Classic</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Full-width specification fields with centered 1D Code128 Barcode on the bottom. Optimized for legacy barcode guns.
+                  </p>
+                </label>
+              </div>
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">

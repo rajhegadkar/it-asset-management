@@ -121,12 +121,13 @@ export const AssetDetailPage: React.FC = () => {
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `label-${asset.assetTag}.pdf`);
+      link.setAttribute('download', `asset-label-${asset.assetTag}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch {
-      alert('Failed to download barcode label');
+      alert('Failed to download asset label');
     }
   };
 

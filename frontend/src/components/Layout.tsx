@@ -205,9 +205,14 @@ export const Layout: React.FC = () => {
               <span className="font-bold tracking-tight text-white block text-sm leading-tight truncate">
                 {branding.companyName || branding.portalTitle || 'IT Asset Manager'}
               </span>
-              <span className="text-[10px] text-blue-400 font-mono tracking-wider font-semibold">
-                v1.0.0 ENTERPRISE
-              </span>
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] text-blue-400 font-mono tracking-wider font-semibold">
+                  v2.0 ENTERPRISE
+                </span>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1 py-0.5 rounded font-bold font-mono">
+                  LOCAL
+                </span>
+              </div>
             </div>
           </Link>
           <button
@@ -251,7 +256,7 @@ export const Layout: React.FC = () => {
               <p className="text-xs font-semibold text-white truncate">
                 {user?.firstName} {user?.lastName}
               </p>
-              <span className="inline-block px-1.5 py-0.2 bg-blue-950 text-blue-400 border border-blue-800/60 rounded text-[10px] font-mono uppercase">
+              <span className="inline-block px-1.5 py-0.5 bg-blue-950 text-blue-400 border border-blue-800/60 rounded text-[10px] font-mono uppercase">
                 {user?.role.displayName || user?.role.name}
               </span>
             </div>
@@ -411,7 +416,7 @@ export const Layout: React.FC = () => {
                 setSelectedTrackTag('');
                 setTrackerModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+              className="h-8 flex items-center space-x-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
               title="Track Asset by Tag"
             >
               <Tag className="w-3.5 h-3.5" />
@@ -421,7 +426,7 @@ export const Layout: React.FC = () => {
             {/* Quick Barcode Scanner Trigger Button */}
             <button
               onClick={() => setScannerOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
+              className="h-8 flex items-center space-x-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
               title="Scan Barcode / QR Code"
             >
               <QrCode className="w-3.5 h-3.5 text-blue-600" />
@@ -431,7 +436,7 @@ export const Layout: React.FC = () => {
             {/* Dark / Light Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
               title="Toggle Dark Mode"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -441,7 +446,7 @@ export const Layout: React.FC = () => {
             <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
+                className="relative w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
