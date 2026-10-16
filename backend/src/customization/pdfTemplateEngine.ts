@@ -52,6 +52,30 @@ export class PdfTemplateEngine {
       },
     });
 
+    // Synchronize global barcode sticker style settings
+    if (updates.barcodeType) {
+      let syncStyle = 'QR_ONLY';
+      if (updates.barcodeType === 'CODE128' || updates.barcodeType === 'CODE39' || updates.barcodeType === 'BARCODE_ONLY') {
+        syncStyle = 'BARCODE_ONLY';
+        const codeType = updates.barcodeType === 'CODE39' ? 'CODE39' : 'CODE128';
+        await prisma.systemSetting.upsert({
+          where: { key: 'barcode.type' },
+          update: { value: codeType },
+          create: { key: 'barcode.type', value: codeType, group: 'BARCODE' },
+        });
+      } else if (updates.barcodeType === 'BOTH') {
+        syncStyle = 'BOTH';
+      } else if (updates.barcodeType === 'QR') {
+        syncStyle = 'QR_ONLY';
+      }
+
+      await prisma.systemSetting.upsert({
+        where: { key: 'barcode.sticker_style' },
+        update: { value: syncStyle, group: 'BARCODE' },
+        create: { key: 'barcode.sticker_style', value: syncStyle, group: 'BARCODE' },
+      });
+    }
+
     return updated;
   }
 

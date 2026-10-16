@@ -471,9 +471,29 @@ export class AssetService {
     const brandingSetting = await prisma.systemSetting.findUnique({ where: { key: 'company.name' } });
     const currentCompanyName = brandingSetting?.value || org?.name || 'GLOBAL TECHNOLOGIES INC.';
 
-    // Resolve sticker format from database setting or query/body parameter (defaults to modern QR_ONLY layout)
-    const styleSetting = await prisma.systemSetting.findUnique({ where: { key: 'barcode.sticker_style' } });
-    const stickerStyle = (requestedStyle || styleSetting?.value || 'QR_ONLY').toUpperCase();
+    // Resolve sticker format from query/body parameter, barcode.sticker_style, or customization.pdf_labels
+    let resolvedStyle = requestedStyle;
+    if (!resolvedStyle) {
+      const styleSetting = await prisma.systemSetting.findUnique({ where: { key: 'barcode.sticker_style' } });
+      if (styleSetting?.value) {
+        resolvedStyle = styleSetting.value;
+      } else {
+        const pdfCustomSetting = await prisma.systemSetting.findUnique({ where: { key: 'customization.pdf_labels' } });
+        if (pdfCustomSetting?.value) {
+          try {
+            const parsed = JSON.parse(pdfCustomSetting.value);
+            if (parsed.barcodeType === 'CODE128' || parsed.barcodeType === 'CODE39' || parsed.barcodeType === 'BARCODE_ONLY') {
+              resolvedStyle = 'BARCODE_ONLY';
+            } else if (parsed.barcodeType === 'BOTH') {
+              resolvedStyle = 'BOTH';
+            } else if (parsed.barcodeType === 'QR' || parsed.barcodeType === 'QR_ONLY') {
+              resolvedStyle = 'QR_ONLY';
+            }
+          } catch {}
+        }
+      }
+    }
+    const stickerStyle = (resolvedStyle || 'QR_ONLY').toUpperCase();
 
     const labelData = assets.map((a) => {
       const userName = a.currentEmployee

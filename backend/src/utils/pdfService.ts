@@ -282,8 +282,18 @@ export class PdfService {
 
         let col = 0;
         let row = 0;
+        let mode: 'QR_ONLY' | 'BARCODE_ONLY' | 'BOTH' = 'QR_ONLY';
+        let barType: 'code128' | 'code39' = 'code128';
+        const rawMode = (stickerStyle || 'QR_ONLY').toUpperCase();
 
-        const mode = (stickerStyle || 'QR_ONLY').toUpperCase();
+        if (rawMode === 'QR' || rawMode === 'QR_CODE' || rawMode === 'QR_ONLY') {
+          mode = 'QR_ONLY';
+        } else if (rawMode === 'BARCODE_ONLY' || rawMode === '1D' || rawMode === 'BARCODE' || rawMode === 'CODE128' || rawMode === 'CODE39') {
+          mode = 'BARCODE_ONLY';
+          if (rawMode === 'CODE39') barType = 'code39';
+        } else if (rawMode === 'BOTH' || rawMode === 'DUAL') {
+          mode = 'BOTH';
+        }
 
         for (let i = 0; i < assets.length; i++) {
           const a = assets[i];
@@ -386,9 +396,9 @@ export class PdfService {
             // Divider Line
             doc.moveTo(x + 8, y + 96).lineTo(x + labelWidth - 8, y + 96).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-            // 1D Barcode Section (Code128)
+            // 1D Barcode Section (Code128 / Code39)
             try {
-              const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, 'code128', {
+              const barcodeBuffer = await BarcodeGenerator.generateBarcodeBuffer(tagDisplay, barType, {
                 includetext: false,
                 height: 8,
                 scale: 3,

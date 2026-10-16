@@ -87,7 +87,7 @@ export interface PdfLabelConfig {
   labelHeightMm: number; // e.g. 36
   labelsPerRow: number; // e.g. 3
   labelsPerCol: number; // e.g. 8
-  barcodeType: 'CODE128' | 'CODE39' | 'QR';
+  barcodeType: 'CODE128' | 'CODE39' | 'QR' | 'BOTH' | 'BARCODE_ONLY';
   showLogo: boolean;
   headerText: string; // e.g. 'PROPERTY OF ACME CORP'
   includeFields: string[]; // ['assetTag', 'serialNumber', 'model', 'category']

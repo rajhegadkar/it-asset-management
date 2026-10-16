@@ -87,7 +87,7 @@ export interface PdfLabelConfig {
   labelHeightMm: number;
   labelsPerRow: number;
   labelsPerCol: number;
-  barcodeType: 'CODE128' | 'CODE39' | 'QR';
+  barcodeType: 'CODE128' | 'CODE39' | 'QR' | 'BOTH' | 'BARCODE_ONLY';
   showLogo: boolean;
   headerText: string;
   includeFields: string[];

@@ -1246,16 +1246,17 @@ export const CustomizationCenterPage: React.FC = () => {
 
                     <div>
                       <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Barcode Symbology
+                        Barcode Symbology & Sticker Format
                       </label>
                       <select
                         value={pdfConfig.barcodeType}
                         onChange={(e) => setPdfConfig({ ...pdfConfig, barcodeType: e.target.value as any })}
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-semibold"
                       >
-                        <option value="QR">2D QR Code Only (Restructured Modern Layout)</option>
-                        <option value="CODE128">Code 128 (Dual QR + 1D Barcode)</option>
-                        <option value="CODE39">Code 39 (1D Barcode Only)</option>
+                        <option value="QR">2D QR Code Only (Restructured Modern Layout — No 1D Barcode)</option>
+                        <option value="CODE128">1D Barcode Only — Code 128 (High-Density Linear Barcode — No QR)</option>
+                        <option value="CODE39">1D Barcode Only — Code 39 (Standard Industrial Barcode — No QR)</option>
+                        <option value="BOTH">Dual Symbology (Both Top-Right QR Code & Bottom 1D Barcode)</option>
                       </select>
                     </div>
                   </div>
@@ -1292,8 +1293,18 @@ export const CustomizationCenterPage: React.FC = () => {
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         Live Barcode Sticker Preview
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        {pdfConfig.barcodeType === 'QR' ? 'Restructured QR Layout' : 'Zero-Collision Engine'}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        pdfConfig.barcodeType === 'QR'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : pdfConfig.barcodeType === 'BOTH'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                          : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                      }`}>
+                        {pdfConfig.barcodeType === 'QR'
+                          ? 'Restructured QR Layout (No Barcode)'
+                          : pdfConfig.barcodeType === 'BOTH'
+                          ? 'Dual Symbology (QR + Barcode)'
+                          : '1D Barcode Only (No QR Code)'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 mb-3">
@@ -1313,7 +1324,7 @@ export const CustomizationCenterPage: React.FC = () => {
                       </div>
 
                       {pdfConfig.barcodeType === 'QR' ? (
-                        /* RESTRUCTURED MODERN QR-ONLY LAYOUT */
+                        /* RESTRUCTURED MODERN QR-ONLY LAYOUT (NO 1D BARCODE) */
                         <div className="p-3">
                           <div className="flex items-stretch gap-3">
                             {/* Left Hero QR Column */}
@@ -1372,8 +1383,8 @@ export const CustomizationCenterPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                      ) : (
-                        /* DUAL BARCODE / CLASSIC LAYOUT */
+                      ) : pdfConfig.barcodeType === 'BOTH' ? (
+                        /* DUAL BARCODE LAYOUT (BOTH QR & 1D BARCODE) */
                         <>
                           <div className="p-3 flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0 space-y-1">
@@ -1428,6 +1439,42 @@ export const CustomizationCenterPage: React.FC = () => {
                             </div>
                           </div>
                         </>
+                      ) : (
+                        /* PURE 1D BARCODE ONLY LAYOUT (NO QR CODE) */
+                        <div className="p-3 space-y-2">
+                          {/* Asset Tag in bold blue */}
+                          <div className="text-[12px] font-bold text-blue-600 font-mono tracking-tight truncate">
+                            TAG-IT-COM-000011
+                          </div>
+
+                          {/* Full-width Model Name */}
+                          <div className="text-[10px] font-bold text-slate-900 leading-snug line-clamp-2">
+                            HP ZBook Studio G10 Mobile Workstation
+                          </div>
+
+                          {/* 2-Column Metadata Grid */}
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <div className="truncate"><span className="text-slate-400 font-bold">S/N:</span> SN-HP-ZB10-0045</div>
+                            <div className="truncate"><span className="text-slate-400 font-bold">Cat:</span> Computing</div>
+                            <div className="truncate"><span className="text-slate-400 font-bold">User:</span> Unassigned (In Stock)</div>
+                            <div className="truncate"><span className="text-slate-400 font-bold">ID:</span> IT-COM-000011</div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="border-t border-slate-200" />
+
+                          {/* 1D Barcode Strip (No QR Code) */}
+                          <div className="pt-0.5 text-center space-y-1">
+                            <div className="flex items-center justify-center space-x-0.5 h-7 overflow-hidden">
+                              {[3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 2, 4, 1, 3].map((w, i) => (
+                                <div key={i} className="bg-slate-900 h-full" style={{ width: `${w}px` }} />
+                              ))}
+                            </div>
+                            <div className="text-[10px] font-mono font-bold text-slate-900 tracking-widest">
+                              * TAG-IT-COM-000011 *
+                            </div>
+                          </div>
+                        </div>
                       )}
 
                       {/* Bottom Footer Notice */}
