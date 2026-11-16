@@ -88,6 +88,9 @@ model User {
   isEmailVerified     Boolean        @default(false)
   twoFactorEnabled    Boolean        @default(false)
   twoFactorSecret     String?
+  twoFactorRecoveryCodes String?  // JSON array of bcrypt hashes of one-time recovery codes
+  tokenVersion        Int            @default(0) // bump to revoke all sessions
+  mustChangePassword  Boolean        @default(false)
   failedLoginAttempts Int            @default(0)
   lockoutUntil        DateTime?
   lastLoginAt         DateTime?
@@ -112,6 +115,8 @@ model LoginHistory {
   status    String   // SUCCESS, FAILED, LOCKED
   reason    String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Employee {
@@ -148,6 +153,8 @@ model Employee {
   ticketsRequested Ticket[]          @relation("Requester")
   licenseAssignments LicenseAssignment[]
   consumableTransactions ConsumableTransaction[]
+
+  @@index([employmentStatus])
 }
 
 model Department {
@@ -348,6 +355,14 @@ model Asset {
   tickets            Ticket[]
   licenseAssignments LicenseAssignment[]
   consumableUsage    ConsumableTransaction[]
+
+  @@index([status])
+  @@index([currentEmployeeId])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([locationId])
+  @@index([isArchived, createdAt])
+  @@index([warrantyEnd])
 }
 
 model AssetAssignment {
@@ -368,11 +383,15 @@ model AssetAssignment {
   handoverDocUrl     String?
   signatureData      String?      // Base64 or text signature
   status             String       @default("ACTIVE") // ACTIVE, RETURNED, OVERDUE
+  returnedAt         DateTime?
   notes              String?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
   returns            AssetReturn[]
+
+  @@index([assetId, status])
+  @@index([employeeId, status])
 }
 
 model AssetReturn {
@@ -430,6 +449,8 @@ model AssetLifecycleLog {
   ipAddress     String?
   metadata      String?  // JSON additional information
   createdAt     DateTime @default(now())
+
+  @@index([assetId])
 }
 
 model Ticket {
@@ -453,12 +474,19 @@ model Ticket {
   slaDueDate         DateTime?
   resolvedAt         DateTime?
   closedAt           DateTime?
+  firstResponseAt    DateTime?
+  slaBreachNotifiedAt DateTime?
   organizationId     String?
   organization       Organization?   @relation(fields: [organizationId], references: [id])
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   comments           TicketComment[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([assignedEngineerId])
+  @@index([createdAt])
 }
 
 model TicketComment {
@@ -472,6 +500,8 @@ model TicketComment {
   isInternal  Boolean  @default(false)
   attachments String?  // JSON array of file paths
   createdAt   DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model MaintenanceRecord {
@@ -495,6 +525,8 @@ model MaintenanceRecord {
   organizationId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([assetId])
 }
 
 model SoftwareLicense {
@@ -532,6 +564,9 @@ model LicenseAssignment {
   asset        Asset?          @relation(fields: [assetId], references: [id])
   assignedDate DateTime        @default(now())
   notes        String?
+
+  @@index([licenseId])
+  @@index([employeeId])
 }
 
 model Consumable {
@@ -568,6 +603,8 @@ model ConsumableTransaction {
   performedById String?
   notes         String?
   createdAt     DateTime    @default(now())
+
+  @@index([consumableId])
 }
 
 model Notification {
@@ -582,6 +619,8 @@ model Notification {
   link           String?
   isRead         Boolean       @default(false)
   createdAt      DateTime      @default(now())
+
+  @@index([userId, isRead])
 }
 
 model AuditLog {
@@ -598,7 +637,12 @@ model AuditLog {
   newValues      String?       // JSON string
   ipAddress      String?
   userAgent      String?
+  prevHash       String?
+  hash           String?       // SHA-256 chain: hash(prevHash + entry) for tamper evidence
   createdAt      DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
 }
 
 model SystemSetting {
@@ -623,4 +667,11 @@ model Attachment {
   filePath     String
   uploadedById String?
   createdAt    DateTime @default(now())
+}
+
+// Atomic counters for Asset ID / Asset Tag / Ticket numbers (one row per entity + reset period)
+model NumberSequence {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
 }

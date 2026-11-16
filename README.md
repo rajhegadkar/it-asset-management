@@ -1,13 +1,13 @@
-# 🏢 Enterprise IT Asset Management (ITAM) System — Release v2.2.0
+# 🏢 Enterprise IT Asset Management (ITAM) System — Release v3.0.0
 
-[![Release](https://img.shields.io/badge/Release-v2.2.0--Official-blue.svg?style=flat-square)](https://github.com/rajhegadkar/it-asset-management/releases/tag/v2.2.0)
+[![Release](https://img.shields.io/badge/Release-v3.0.0--Official-blue.svg?style=flat-square)](https://github.com/rajhegadkar/it-asset-management/releases/tag/v3.0.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-v18%20%7C%20v20%20%7C%20v22%20LTS-339933.svg?style=flat-square&logo=nodedotjs)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?style=flat-square&logo=react)](https://react.dev/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748.svg?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-88%2F88%20Passing%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
+[![Tests](https://img.shields.io/badge/Tests-Passed%20(100%25)-brightgreen.svg?style=flat-square)](backend/tests/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7.svg?style=flat-square&logo=render)](https://it-asset-management-q6ey.onrender.com/)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhegadkar/it-asset-management)
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template?template=https://github.com/rajhegadkar/it-asset-management)
@@ -24,6 +24,12 @@ A **production-ready, enterprise-grade IT Asset Management (ITAM) platform** eng
 Features end-to-end hardware lifecycle management, dynamic custom attributes, automated Code128 barcode & QR code generation, USB gun & camera barcode scanning, paperless digital signature handover certificates, Software Asset Management (SAM) license compliance, automated helpdesk ticketing, disaster recovery backups, and a **Super Admin Customization Engine** enabling full white-labeling and no-code tailoring.
 
 ---
+
+
+> **Major Release update (v3.0.0, Nov 2026):** see [`CHANGELOG_v3.0.0.md`](CHANGELOG_v3.0.0.md).
+> Production now refuses to start without strong `JWT_SECRET`, `JWT_REFRESH_SECRET`; set `SETTINGS_ENCRYPTION_KEY` and
+> `BACKUP_ENCRYPTION_KEY` too. The demo quick-login switcher only appears in development builds, and seeded demo accounts
+> must change their password at first sign-in when seeded with `NODE_ENV=production`.
 
 ## 📑 Table of Contents
 

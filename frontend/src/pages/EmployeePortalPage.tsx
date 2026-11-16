@@ -21,11 +21,15 @@ import {
   Tag,
   X,
 } from 'lucide-react';
+import { notify } from '../components/ui/dialogs.js';
 
 export const EmployeePortalPage: React.FC = () => {
   const { user } = useAuth();
 
-  const [assignments, setAssignments] = useState<AssetAssignment[]>([]);
+  const [allAssignments, setAssignments] = useState<AssetAssignment[]>([]);
+  // Only equipment the employee holds right now; returned / transferred items go to the history list
+  const assignments = allAssignments.filter((a: any) => !a.status || a.status === 'ACTIVE');
+  const pastAssignments = allAssignments.filter((a: any) => a.status && a.status !== 'ACTIVE');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,7 +85,7 @@ export const EmployeePortalPage: React.FC = () => {
       link.click();
       link.remove();
     } catch {
-      alert('Failed to generate PDF document');
+      notify('Failed to generate PDF document');
     }
   };
 
@@ -95,7 +99,7 @@ export const EmployeePortalPage: React.FC = () => {
       setTicketModalOpen(false);
       fetchMyData();
     } catch {
-      alert('Failed to raise ticket');
+      notify('Failed to raise ticket');
     }
   };
 
@@ -255,6 +259,36 @@ export const EmployeePortalPage: React.FC = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {pastAssignments.length > 0 && (
+          <details className="group card p-0 overflow-hidden" data-testid="portal-history">
+            <summary className="cursor-pointer select-none list-none flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <span>Previously held equipment ({pastAssignments.length})</span>
+              <span className="text-xs font-normal text-slate-400 group-open:hidden">Show</span>
+              <span className="text-xs font-normal text-slate-400 hidden group-open:inline">Hide</span>
+            </summary>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800">
+              {pastAssignments.map((asg: any) => (
+                <li key={asg.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-800 dark:text-slate-100 truncate">{asg.asset?.name}</div>
+                    <div className="text-slate-500 font-mono">
+                      {asg.asset?.assetTag} · {asg.status === 'RETURNED' ? 'Returned' : asg.status?.toLowerCase()}
+                      {asg.returnedAt ? ` on ${new Date(asg.returnedAt).toLocaleDateString()}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDownloadHandover(asg.id, asg.asset?.assetTag)}
+                    className="btn-ghost text-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Receipt
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
 

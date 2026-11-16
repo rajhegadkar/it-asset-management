@@ -1,5 +1,14 @@
 import { prisma } from '../config/db.js';
 
+/** Copies only allow-listed keys; '' becomes null for optional links. */
+function pick(data: any, keys: string[], nullable: string[] = []): any {
+  const out: any = {};
+  for (const k of keys) {
+    if (data && data[k] !== undefined) out[k] = nullable.includes(k) && data[k] === '' ? null : data[k];
+  }
+  return out;
+}
+
 export class DepartmentLocationVendorService {
   // --- Organization ---
   static async getOrganization() {
@@ -70,7 +79,7 @@ export class DepartmentLocationVendorService {
   static async updateDepartment(id: string, data: Partial<{ name: string; code: string; departmentHead: string; locationId: string; costCenter: string }>) {
     return await prisma.department.update({
       where: { id },
-      data,
+      data: pick(data, ['name', 'code', 'departmentHead', 'locationId', 'costCenter'], ['locationId']),
     });
   }
 
@@ -106,9 +115,19 @@ export class DepartmentLocationVendorService {
   }
 
   static async updateLocation(id: string, data: Partial<{ name: string; code: string; type: string; parentId: string; address: string }>) {
+    if (data?.parentId && data.parentId === id) throw { statusCode: 400, message: 'A location cannot be its own parent', code: 'VALIDATION_ERROR' };
+    if (data?.parentId) {
+      // prevent cycles: walk up from the new parent
+      let cursor: string | null = data.parentId;
+      for (let i = 0; cursor && i < 50; i++) {
+        if (cursor === id) throw { statusCode: 400, message: 'That parent would create a loop in the location hierarchy', code: 'VALIDATION_ERROR' };
+        const p: { parentId: string | null } | null = await prisma.location.findUnique({ where: { id: cursor }, select: { parentId: true } });
+        cursor = p?.parentId || null;
+      }
+    }
     return await prisma.location.update({
       where: { id },
-      data,
+      data: pick(data, ['name', 'code', 'type', 'parentId', 'address'], ['parentId']),
     });
   }
 
@@ -168,11 +187,8 @@ export class DepartmentLocationVendorService {
     taxId: string;
     paymentTerms: string;
   }>) {
-    const updateData: any = { ...data };
-    if (data.contactEmail && !data.email) {
-      updateData.email = data.contactEmail;
-      delete updateData.contactEmail;
-    }
+    const updateData: any = pick(data, ['name', 'code', 'contactPerson', 'email', 'phone', 'address', 'website', 'taxId', 'paymentTerms']);
+    if (data.contactEmail && !data.email) updateData.email = data.contactEmail;
     return await prisma.vendor.update({
       where: { id },
       data: updateData,
@@ -225,7 +241,8 @@ export class DepartmentLocationVendorService {
     icon: string;
     customFieldsSchema: any;
   }>) {
-    const updatePayload: any = { ...data };
+    const updatePayload: any = pick(data, ['name', 'code', 'parentId', 'description', 'icon', 'customFieldsSchema'], ['parentId']);
+    if (data.parentId && data.parentId === id) throw { statusCode: 400, message: 'A category cannot be its own parent', code: 'VALIDATION_ERROR' };
     if (data.customFieldsSchema !== undefined) {
       updatePayload.customFieldsSchema = typeof data.customFieldsSchema === 'object'
         ? JSON.stringify(data.customFieldsSchema)

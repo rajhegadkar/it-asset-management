@@ -19,6 +19,13 @@ if ((-not (Test-Path "$ScriptDir\backend\node_modules")) -or (-not (Test-Path "$
     Exit 0
 }
 
+# 0. Keep dependencies and the database schema in step with the code (safe: never drops data)
+Write-Host "[0/2] Syncing backend dependencies and database schema..." -ForegroundColor Green
+& npm.cmd --prefix backend install --no-audit --no-fund *> $null
+& npm.cmd --prefix backend run prisma:generate *> $null
+& npm.cmd --prefix backend run prisma:push
+if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Database schema update failed." -ForegroundColor Red; Exit 1 }
+
 # 1. Start Backend Server
 Write-Host "[1/2] Starting Backend API Server (Port 5000)..." -ForegroundColor Green
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ScriptDir\backend'; Write-Host 'Starting Backend API Server (Port 5000)...' -ForegroundColor Cyan; npm run dev"

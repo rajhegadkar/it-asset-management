@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './Modal.js';
 import { api } from '../api/client.js';
 import { UploadCloud, FileSpreadsheet, Download, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { notify } from './ui/dialogs.js';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       link.click();
       link.remove();
     } catch {
-      alert('Failed to download template file');
+      notify('Failed to download template file');
     }
   };
 

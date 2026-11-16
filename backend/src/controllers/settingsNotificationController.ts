@@ -4,6 +4,13 @@ import { JobScheduler } from '../jobs/scheduler.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { EmailService } from '../utils/emailService.js';
 import { BrandingEngine } from '../customization/brandingEngine.js';
+import { SecretBox, SECRET_MASK } from '../utils/secretBox.js';
+import { verifyAuditChain } from '../middlewares/audit.js';
+
+// Settings that hold secrets: encrypted at rest, masked on read
+const SECRET_SETTING_KEYS = new Set(['email.smtp_pass']);
+// Settings managed by their own endpoints (validated there); not writable through the generic API
+const PROTECTED_PREFIXES = ['disaster_recovery.', 'customization.'];
 
 export class SettingsNotificationController {
   // --- System Settings ---
@@ -12,7 +19,12 @@ export class SettingsNotificationController {
       const settings = await prisma.systemSetting.findMany({
         orderBy: { key: 'asc' },
       });
-      return ApiResponse.success(res, settings, 'System settings retrieved');
+      const safe = settings.map((st) => {
+        if (SECRET_SETTING_KEYS.has(st.key)) return { ...st, value: st.value ? SECRET_MASK : '' };
+        if (st.key === 'disaster_recovery.config') return { ...st, value: '[managed in Disaster Recovery Center]' };
+        return st;
+      });
+      return ApiResponse.success(res, safe, 'System settings retrieved');
     } catch (error) {
       next(error);
     }
@@ -26,10 +38,19 @@ export class SettingsNotificationController {
       }
 
       for (const item of updates) {
+        if (!item || typeof item.key !== 'string' || !/^[a-zA-Z0-9_.-]{1,100}$/.test(item.key)) {
+          return ApiResponse.error(res, `Invalid setting key: ${item?.key}`, 400, 'VALIDATION_ERROR');
+        }
+        if (PROTECTED_PREFIXES.some((p) => item.key.startsWith(p))) continue;
+        let value = item.value === undefined || item.value === null ? '' : String(item.value);
+        if (SECRET_SETTING_KEYS.has(item.key)) {
+          if (SecretBox.isMasked(value)) continue; // unchanged
+          value = SecretBox.encrypt(value);
+        }
         await prisma.systemSetting.upsert({
           where: { key: item.key },
-          update: { value: item.value, group: item.group || 'GENERAL' },
-          create: { key: item.key, value: item.value, group: item.group || 'GENERAL' },
+          update: { value, group: item.group || 'GENERAL' },
+          create: { key: item.key, value, group: item.group || 'GENERAL' },
         });
 
         if (item.key === 'company.name' && item.value) {
@@ -96,7 +117,7 @@ export class SettingsNotificationController {
 
       const currentConfig = await EmailService.getConfig();
       let finalPass = currentConfig.smtpPass;
-      if (smtpPass && smtpPass !== '••••••••') {
+      if (smtpPass && !SecretBox.isMasked(smtpPass)) {
         finalPass = smtpPass;
       }
 
@@ -106,7 +127,7 @@ export class SettingsNotificationController {
         'email.smtp_port': smtpPort ? smtpPort.toString() : '587',
         'email.smtp_secure': smtpSecure ? 'true' : 'false',
         'email.smtp_user': smtpUser || '',
-        'email.smtp_pass': finalPass || '',
+        'email.smtp_pass': SecretBox.encrypt(finalPass || ''),
         'email.from_name': fromName || 'IT Asset Management v2.0',
         'email.from_email': fromEmail || 'noreply@itam.local',
         'email.enable_tls': enableTls !== false ? 'true' : 'false',
@@ -128,7 +149,11 @@ export class SettingsNotificationController {
 
       EmailService.resetTransporter();
       const updatedConfig = await EmailService.getConfig();
-      return ApiResponse.success(res, updatedConfig, 'Email settings updated successfully');
+      return ApiResponse.success(
+        res,
+        { ...updatedConfig, smtpPass: updatedConfig.smtpPass ? SECRET_MASK : '', hasPassword: !!updatedConfig.smtpPass },
+        'Email settings updated successfully'
+      );
     } catch (error) {
       next(error);
     }
@@ -144,7 +169,7 @@ export class SettingsNotificationController {
         const current = await EmailService.getConfig();
         testConfig = {
           ...config,
-          smtpPass: config.smtpPass === '••••••••' ? current.smtpPass : config.smtpPass,
+          smtpPass: SecretBox.isMasked(config.smtpPass) ? current.smtpPass : config.smtpPass,
         };
       }
 
@@ -181,10 +206,12 @@ export class SettingsNotificationController {
 
   static async markNotificationRead(req: Request, res: Response, next: NextFunction) {
     try {
-      await prisma.notification.update({
-        where: { id: req.params.id },
+      // Only the owner can mark a notification read
+      const result = await prisma.notification.updateMany({
+        where: { id: req.params.id, userId: req.user!.id },
         data: { isRead: true },
       });
+      if (result.count === 0) return ApiResponse.error(res, 'Notification not found', 404, 'NOT_FOUND');
       return ApiResponse.success(res, null, 'Notification marked as read');
     } catch (error) {
       next(error);
@@ -236,23 +263,47 @@ export class SettingsNotificationController {
     }
   }
 
-  // --- System Health ---
+  static async verifyAuditLogs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await verifyAuditChain();
+      return ApiResponse.success(res, result, result.valid ? 'Audit trail intact' : 'Audit trail has been altered');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // --- System Health (public: minimal information only) ---
   static async getHealth(req: Request, res: Response, next: NextFunction) {
     try {
-      const dbCheck = await prisma.$queryRaw`SELECT 1 as alive`;
+      await prisma.$queryRaw`SELECT 1 as alive`;
       const schedulerStatus = JobScheduler.getStatus();
-
       return ApiResponse.success(res, {
         status: 'UP',
-        version: '2.0.0',
+        version: '2.3.0',
+        database: 'CONNECTED',
+        scheduler: { active: schedulerStatus.active },
+        timestamp: new Date().toISOString(),
+      }, 'System health status');
+    } catch (error) {
+      return ApiResponse.error(res, 'System health check failed', 503, 'SERVICE_UNAVAILABLE');
+    }
+  }
+
+  /** Detailed health for the Super Admin settings page (memory, uptime, scheduler). */
+  static async getHealthDetails(req: Request, res: Response, next: NextFunction) {
+    try {
+      await prisma.$queryRaw`SELECT 1 as alive`;
+      return ApiResponse.success(res, {
+        status: 'UP',
+        version: '2.3.0',
         uptime: process.uptime(),
         database: 'CONNECTED',
-        scheduler: schedulerStatus,
+        scheduler: JobScheduler.getStatus(),
         memoryUsage: process.memoryUsage(),
         timestamp: new Date().toISOString(),
       }, 'System health status');
     } catch (error) {
-      return ApiResponse.error(res, 'System health check failed', 503, 'SERVICE_UNAVAILABLE', [error]);
+      next(error);
     }
   }
 }

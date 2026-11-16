@@ -75,3 +75,16 @@ Desktop.ini
 
 # Agent & Brain artifacts
 .system_generated/
+
+# UI test suite (Playwright)
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+backend/prisma/e2e-test.db*
+backend/backups-e2e/
+_backup*
+_backup_before_audit_fixes_2026-11-16/
+_backup_before_customfield_fix_2026-11-16/
+_backup_before_labels_audit_2026-11-16/
+_backup_before_ui_redesign_2026-11-16/

@@ -4,6 +4,8 @@ import { Consumable, Employee } from '../types/index.js';
 import { Modal } from '../components/Modal.js';
 import { PackageCheck, Plus, RefreshCw, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, Edit2, Trash2 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
+import { confirmDialog, notify } from '../components/ui/dialogs.js';
+import { getAll } from '../api/fetchAll.js';
 
 export const ConsumablesPage: React.FC = () => {
   const { branding, formatCurrency } = useBranding();
@@ -54,7 +56,8 @@ export const ConsumablesPage: React.FC = () => {
       if (lowStockOnly) params.lowStockOnly = 'true';
 
       const res = await api.get('/consumables', { params });
-      setConsumables(res.data.data.consumables || []);
+      const payload = res.data.data;
+      setConsumables(Array.isArray(payload) ? payload : payload?.consumables || []);
     } catch (err) {
       console.error('Failed to load consumables:', err);
     } finally {
@@ -64,7 +67,7 @@ export const ConsumablesPage: React.FC = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get('/employees?limit=100');
+      const res = await getAll('/employees?limit=100');
       setEmployees(res.data.data);
       if (res.data.data.length > 0) {
         setTxForm((prev) => ({ ...prev, employeeId: res.data.data[0].id }));
@@ -90,7 +93,7 @@ export const ConsumablesPage: React.FC = () => {
       setCreateModalOpen(false);
       fetchConsumables();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create consumable');
+      notify(err.response?.data?.message || 'Failed to create consumable');
     }
   };
 
@@ -103,7 +106,7 @@ export const ConsumablesPage: React.FC = () => {
       setTxModalOpen(false);
       fetchConsumables();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Transaction failed');
+      notify(err.response?.data?.message || 'Transaction failed');
     }
   };
 
@@ -134,17 +137,17 @@ export const ConsumablesPage: React.FC = () => {
       setEditingConsumable(null);
       fetchConsumables();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update consumable');
+      notify(err.response?.data?.message || 'Failed to update consumable');
     }
   };
 
   const handleDeleteConsumable = async (item: Consumable) => {
-    if (!confirm(`Are you sure you want to delete spare part "${item.name}" (${item.itemCode})?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete spare part "${item.name}" (${item.itemCode})?`)) return;
     try {
       await api.delete(`/consumables/${item.id}`);
       fetchConsumables();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete consumable');
+      notify(err.response?.data?.message || 'Failed to delete consumable');
     }
   };
 
@@ -331,7 +334,7 @@ export const ConsumablesPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Item Code *
@@ -367,7 +370,7 @@ export const ConsumablesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Initial Stock
@@ -445,7 +448,7 @@ export const ConsumablesPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Transaction Type
@@ -553,7 +556,7 @@ export const ConsumablesPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Item Code *
@@ -588,7 +591,7 @@ export const ConsumablesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Stock Units *

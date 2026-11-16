@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { CustomFieldDisplay } from '../customization/CustomFieldDisplay.js';
 import { useBranding } from '../customization/BrandingContext.js';
+import { notify } from './ui/dialogs.js';
+import { downloadAssetLabels } from './ui/labelPrint.js';
 
 interface AssetTrackerModalProps {
   isOpen: boolean;
@@ -83,20 +85,9 @@ export const AssetTrackerModal: React.FC<AssetTrackerModalProps> = ({
 
   const handleDownloadLabel = async (assetId: string, assetTag: string) => {
     try {
-      const res = await api.post(
-        '/assets/labels/pdf',
-        { assetIds: [assetId] },
-        { responseType: 'blob' }
-      );
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `label-${assetTag}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await downloadAssetLabels({ assetIds: [assetId] }, `label-${assetTag}.pdf`);
     } catch {
-      alert('Failed to generate barcode label');
+      notify('Failed to generate barcode label');
     }
   };
 

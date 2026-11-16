@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { BrandingConfig } from './types.js';
 import { customizationApi } from './customizationApi.js';
+import { applyBrandColor, applySidebarColor, DEFAULT_BRAND } from './brandTheme.js';
 
 interface BrandingContextType {
   branding: BrandingConfig;
@@ -14,9 +15,9 @@ interface BrandingContextType {
 const DEFAULT_BRANDING: BrandingConfig = {
   companyName: 'Acme Corporation',
   portalTitle: 'ITAM Enterprise Hub',
-  primaryColor: '#2563eb',
+  primaryColor: DEFAULT_BRAND,
   accentColor: '#10b981',
-  headerBgColor: '#0f172a',
+  headerBgColor: '#0b1020',
   loginBannerText: 'Welcome to Acme Global Enterprise IT Asset Management System. Authorized personnel only.',
   currencySymbol: '$',
   currencyCode: 'USD',
@@ -72,6 +73,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cfg.primaryColor) {
       root.style.setProperty('--primary-color', cfg.primaryColor);
     }
+    // The whole UI's brand scale (every blue-* class) follows the configured primary colour
+    applyBrandColor(cfg.primaryColor);
+    applySidebarColor(cfg.headerBgColor);
     if (cfg.accentColor) {
       root.style.setProperty('--accent-color', cfg.accentColor);
     }

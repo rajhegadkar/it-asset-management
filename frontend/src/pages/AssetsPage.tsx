@@ -8,7 +8,7 @@ import { ImportModal } from '../components/ImportModal.js';
 import { AssetTrackerModal } from '../components/AssetTrackerModal.js';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
 import { useBranding } from '../customization/BrandingContext.js';
-import { Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   Laptop,
   Search,
@@ -26,6 +26,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext.js';
+import { downloadAssetLabels } from '../components/ui/labelPrint.js';
 
 export const AssetsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -37,7 +38,9 @@ export const AssetsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  // Deep links from the dashboard: /assets?status=AVAILABLE, /assets?new=1
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || '');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 15, totalPages: 1 });
   const [trackerOpen, setTrackerOpen] = useState(false);
@@ -45,7 +48,7 @@ export const AssetsPage: React.FC = () => {
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
 
   // Modals state
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(searchParams.get('new') === '1');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -211,6 +214,14 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
+  // Typing in the form can overwrite the category picked when categories finished loading
+  // (stale form state), so re-apply the default whenever it ends up empty.
+  useEffect(() => {
+    if (!formData.categoryId && categories.length > 0) {
+      setFormData((prev) => (prev.categoryId ? prev : { ...prev, categoryId: categories[0].id }));
+    }
+  }, [formData.categoryId, categories]);
+
   const handleToggleSelectOne = (id: string) => {
     setSelectedAssetIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -221,20 +232,10 @@ export const AssetsPage: React.FC = () => {
     setGeneratingLabels(true);
     try {
       const payload = options.all ? { all: true } : { assetIds: options.assetIds };
-      const res = await api.post('/assets/labels/pdf', payload, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
       const filename = options.all
         ? 'complete-fleet-asset-labels.pdf'
         : `selected-${options.assetIds?.length}-asset-labels.pdf`;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      if (!(await downloadAssetLabels(payload, filename))) return;
       showSuccess(
         options.all
           ? 'Complete inventory asset labels sheet generated successfully'
@@ -250,19 +251,7 @@ export const AssetsPage: React.FC = () => {
 
   const handleDownloadLabel = async (assetId: string, assetTag: string) => {
     try {
-      const res = await api.post(
-        '/assets/labels/pdf',
-        { assetIds: [assetId] },
-        { responseType: 'blob' }
-      );
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `asset-label-${assetTag}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      if (!(await downloadAssetLabels({ assetIds: [assetId] }, `asset-label-${assetTag}.pdf`))) return;
       showSuccess(`Asset label downloaded for ${assetTag}`);
     } catch {
       showError('Failed to generate label');
@@ -641,6 +630,7 @@ export const AssetsPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg"
               >
+                {categories.length === 0 && <option value="">Loading categories…</option>}
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -774,7 +764,8 @@ export const AssetsPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+              disabled={!formData.categoryId}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm disabled:opacity-50 disabled:cursor-wait"
             >
               Save Asset & Generate Barcode
             </button>

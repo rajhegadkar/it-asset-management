@@ -28,6 +28,8 @@ import { CustomFieldDisplay } from '../customization/CustomFieldDisplay.js';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
 import { Modal } from '../components/Modal.js';
 import { useBranding } from '../customization/BrandingContext.js';
+import { notify } from '../components/ui/dialogs.js';
+import { downloadAssetLabels } from '../components/ui/labelPrint.js';
 
 export const AssetDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -88,7 +90,7 @@ export const AssetDetailPage: React.FC = () => {
       setEditModalOpen(false);
       await fetchAsset();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update asset');
+      notify(err.response?.data?.message || 'Failed to update asset');
     } finally {
       setEditSaving(false);
     }
@@ -100,7 +102,7 @@ export const AssetDetailPage: React.FC = () => {
       const res = await api.get(`/assets/${id}`);
       setAsset(res.data.data);
     } catch {
-      alert('Failed to load asset details');
+      notify('Failed to load asset details');
     } finally {
       setLoading(false);
     }
@@ -113,21 +115,9 @@ export const AssetDetailPage: React.FC = () => {
   const handlePrintLabel = async () => {
     if (!asset) return;
     try {
-      const res = await api.post(
-        '/assets/labels/pdf',
-        { assetIds: [asset.id] },
-        { responseType: 'blob' }
-      );
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `asset-label-${asset.assetTag}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await downloadAssetLabels({ assetIds: [asset.id] }, `asset-label-${asset.assetTag}.pdf`);
     } catch {
-      alert('Failed to download asset label');
+      notify('Failed to download asset label');
     }
   };
 

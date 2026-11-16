@@ -51,6 +51,12 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM EXIT
 
+# 0. Keep dependencies and the database schema in step with the code (safe: never drops data)
+echo -e "${COLOR_BOLD}[0/2] Syncing backend dependencies and database schema...${COLOR_RESET}"
+npm --prefix backend install --no-audit --no-fund >/dev/null 2>&1 || true
+npm --prefix backend run prisma:generate >/dev/null
+npm --prefix backend run prisma:push
+
 # 1. Start Backend API Server
 echo -e "${COLOR_BOLD}[1/2] Starting Backend REST API Server (Port 5000)...${COLOR_RESET}"
 (

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { registerNotify, inferType } from '../components/ui/dialogs.js';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -62,11 +63,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   React.useEffect(() => {
     const originalAlert = window.alert;
+    // Any leftover alert() becomes a toast with the right tone (success / error / warning)
     window.alert = (message?: any) => {
-      showToast(String(message ?? ''), 'warning', 5000);
+      const text = String(message ?? '');
+      showToast(text, inferType(text), 5000);
     };
+    registerNotify((msg, type) => showToast(msg, type, type === 'error' ? 6000 : 4000));
     return () => {
       window.alert = originalAlert;
+      registerNotify(null);
     };
   }, [showToast]);
 
@@ -83,39 +88,35 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }}
     >
       {children}
-      {/* Toast Notification Container */}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col space-y-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+      {/* Toasts: bottom-centre on phones (above the bottom nav), bottom-right on desktop */}
+      <div
+        className="fixed z-[9999] left-0 right-0 bottom-[calc(var(--bottom-nav-h)+12px)] lg:bottom-6 lg:left-auto lg:right-6 flex flex-col items-center lg:items-end gap-2 px-3 pointer-events-none"
+        role="status"
+        aria-live="polite"
+      >
         {toasts.map((toast) => {
-          const isSuccess = toast.type === 'success';
-          const isError = toast.type === 'error';
-          const isWarning = toast.type === 'warning';
-
+          const tone = {
+            success: { icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />, bar: 'bg-emerald-500' },
+            error: { icon: <AlertCircle className="w-5 h-5 text-rose-500" />, bar: 'bg-rose-500' },
+            warning: { icon: <AlertTriangle className="w-5 h-5 text-amber-500" />, bar: 'bg-amber-500' },
+            info: { icon: <Info className="w-5 h-5 text-blue-500" />, bar: 'bg-blue-500' },
+          }[toast.type];
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start p-3.5 rounded-xl shadow-xl border text-xs transition-all duration-300 transform translate-y-0 ${
-                isSuccess
-                  ? 'bg-emerald-950/90 text-emerald-100 border-emerald-700/60 backdrop-blur-md'
-                  : isError
-                  ? 'bg-rose-950/90 text-rose-100 border-rose-700/60 backdrop-blur-md'
-                  : isWarning
-                  ? 'bg-amber-950/90 text-amber-100 border-amber-700/60 backdrop-blur-md'
-                  : 'bg-slate-900/90 text-slate-100 border-slate-700/60 backdrop-blur-md'
-              }`}
+              data-testid={`toast-${toast.type}`}
+              className="pointer-events-auto relative overflow-hidden w-full max-w-sm flex items-start gap-3 rounded-2xl border border-line bg-white/95 dark:bg-surface/95 backdrop-blur-md shadow-pop p-3.5 pl-4 text-sm animate-slide-in-right"
             >
-              <div className="shrink-0 mr-2.5 mt-0.5">
-                {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-                {isError && <AlertCircle className="w-4 h-4 text-rose-400" />}
-                {isWarning && <AlertTriangle className="w-4 h-4 text-amber-400" />}
-                {!isSuccess && !isError && !isWarning && <Info className="w-4 h-4 text-blue-400" />}
-              </div>
-              <div className="flex-1 font-medium leading-relaxed pr-2">{toast.message}</div>
+              <span className={`absolute left-0 top-0 bottom-0 w-1 ${tone.bar}`} />
+              <span className="shrink-0 mt-0.5">{tone.icon}</span>
+              <p className="flex-1 text-slate-700 dark:text-slate-200 leading-snug break-words">{toast.message}</p>
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}
-                className="shrink-0 text-slate-400 hover:text-white p-0.5 rounded transition-colors"
+                aria-label="Dismiss"
+                className="tap-compact shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           );

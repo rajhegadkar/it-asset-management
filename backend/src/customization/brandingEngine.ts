@@ -6,9 +6,9 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   portalTitle: 'ITAM Enterprise Hub',
   logoUrl: '',
   faviconUrl: '',
-  primaryColor: '#2563eb', // Blue-600
+  primaryColor: '#4f46e5', // Indigo-600 (design system v3)
   accentColor: '#10b981', // Emerald-500
-  headerBgColor: '#0f172a', // Slate-900
+  headerBgColor: '#0b1020', // Ink (sidebar)
   loginBannerText: 'Welcome to Acme Global Enterprise IT Asset Management System. Authorized personnel only.',
   currencySymbol: '$',
   currencyCode: 'USD',

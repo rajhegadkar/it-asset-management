@@ -1,3 +1,4 @@
+import { SecretBox } from './secretBox.js';
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
@@ -75,7 +76,7 @@ export class EmailService {
         smtpPort: map.has('email.smtp_port') ? parseInt(map.get('email.smtp_port')!, 10) : defaultPort,
         smtpSecure: map.get('email.smtp_secure') === 'true' || (map.has('email.smtp_secure') ? false : env.SMTP_SECURE),
         smtpUser: map.get('email.smtp_user') || env.SMTP_USER || '',
-        smtpPass: map.get('email.smtp_pass') || env.SMTP_PASS || '',
+        smtpPass: SecretBox.decrypt(map.get('email.smtp_pass')) || env.SMTP_PASS || '',
         fromName: map.get('email.from_name') || 'IT Asset Management v1.0',
         fromEmail: map.get('email.from_email') || env.SMTP_FROM || 'noreply@itam.local',
         enableTls: map.get('email.enable_tls') !== 'false',
@@ -141,18 +142,17 @@ export class EmailService {
       // Office 365 Outlook specific requirements (TLS 1.2, STARTTLS ciphers)
       (transportOptions as any).requireTLS = true;
       (transportOptions as any).tls = {
-        ciphers: 'SSLv3',
         minVersion: 'TLSv1.2',
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
       };
     } else if (config.provider === 'google_workspace') {
       // Google Workspace requirements
       (transportOptions as any).tls = {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
       };
     } else if (config.enableTls) {
       (transportOptions as any).tls = {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
       };
     }
 
@@ -181,7 +181,7 @@ export class EmailService {
       if (category === 'expiry' && !config.notifyOnExpiry) return true;
 
       // Mock in test or if credentials are empty
-      if (!config.smtpUser || env.NODE_ENV === 'test' || process.env.NODE_ENV === 'test') {
+      if (!config.smtpUser || env.NODE_ENV === 'test' || process.env.NODE_ENV === 'test' || process.env.EMAIL_MOCK === 'true') {
         logger.info(`📧 [MOCK EMAIL DISPATCH] To: ${options.to} | Subject: ${options.subject}`);
         return true;
       }
@@ -244,13 +244,12 @@ export class EmailService {
       if (config.provider === 'office_365') {
         transportOptions.requireTLS = true;
         transportOptions.tls = {
-          ciphers: 'SSLv3',
-          minVersion: 'TLSv1.2',
-          rejectUnauthorized: false,
+            minVersion: 'TLSv1.2',
+          rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
         };
       } else {
         transportOptions.tls = {
-          rejectUnauthorized: false,
+          rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
         };
       }
 

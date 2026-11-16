@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/index.js';
-import { api } from '../api/client.js';
+import { api, clearSession, ACCESS_KEY, REFRESH_KEY, USER_KEY } from '../api/client.js';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (token: string, userData: User) => void;
+  login: (token: string, userData: User, refreshToken?: string) => void;
   logout: () => void;
   hasRole: (...roles: string[]) => boolean;
   hasPermission: (permission: string) => boolean;
@@ -36,22 +36,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await api.get('/auth/profile');
       if (res.data?.success && res.data?.data) {
         setUser(res.data.data);
-        localStorage.setItem('itam_user', JSON.stringify(res.data.data));
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data.data));
       }
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         setToken(null);
         setUser(null);
-        localStorage.removeItem('itam_access_token');
-        localStorage.removeItem('itam_user');
+        clearSession();
       }
     }
   };
 
   useEffect(() => {
     const initAuth = async () => {
-      const savedToken = localStorage.getItem('itam_access_token');
-      const savedUser = localStorage.getItem('itam_user');
+      const savedToken = localStorage.getItem(ACCESS_KEY);
+      const savedUser = localStorage.getItem(USER_KEY);
 
       if (savedToken) {
         setToken(savedToken);
@@ -59,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             setUser(JSON.parse(savedUser));
           } catch {
-            localStorage.removeItem('itam_user');
+            localStorage.removeItem(USER_KEY);
           }
         }
         await refreshUser();
@@ -70,18 +69,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = (newToken: string, userData: User) => {
+  const login = (newToken: string, userData: User, refreshToken?: string) => {
     setToken(newToken);
     setUser(userData);
-    localStorage.setItem('itam_access_token', newToken);
-    localStorage.setItem('itam_user', JSON.stringify(userData));
+    localStorage.setItem(ACCESS_KEY, newToken);
+    if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Revoke the session on the server too (stolen tokens stop working)
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      /* already signed out */
+    }
     setToken(null);
     setUser(null);
-    localStorage.removeItem('itam_access_token');
-    localStorage.removeItem('itam_user');
+    clearSession();
     window.location.href = '/login';
   };
 
@@ -92,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         organization: prev.organization ? { ...prev.organization, name } : { id: 'org', name, slug: 'org' } as any,
       };
-      localStorage.setItem('itam_user', JSON.stringify(updated));
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
       return updated;
     });
   };

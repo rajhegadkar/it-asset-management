@@ -5,6 +5,17 @@ import { TransferService } from '../services/transferService.js';
 import { DisposalService } from '../services/disposalService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { prisma } from '../config/db.js';
+import { isStaff } from '../middlewares/auth.js';
+
+/** Throws 403 unless the caller is staff or the employee the assignment belongs to. */
+async function assertAssignmentAccess(req: Request, assignmentId: string) {
+  if (isStaff(req)) return;
+  const a = await prisma.assetAssignment.findUnique({ where: { id: assignmentId }, select: { employeeId: true } });
+  if (!a) throw { statusCode: 404, message: 'Assignment record not found', code: 'ASSIGNMENT_NOT_FOUND' };
+  if (!req.user?.employeeId || a.employeeId !== req.user.employeeId) {
+    throw { statusCode: 403, message: 'You can only access your own asset assignments.', code: 'FORBIDDEN' };
+  }
+}
 
 export class AllocationController {
   // --- Allocation ---
@@ -19,7 +30,7 @@ export class AllocationController {
 
   static async acknowledgeAllocation(req: Request, res: Response, next: NextFunction) {
     try {
-      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+      const ipAddress = req.ip || req.socket.remoteAddress || '127.0.0.1';
       const result = await AllocationService.acknowledge(req.params.id, {
         signatureData: req.body.signatureData,
         ipAddress,
@@ -33,6 +44,7 @@ export class AllocationController {
 
   static async downloadHandoverPdf(req: Request, res: Response, next: NextFunction) {
     try {
+      await assertAssignmentAccess(req, req.params.id);
       const buffer = await AllocationService.getHandoverPdf(req.params.id);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="handover-certificate-${req.params.id}.pdf"`);
@@ -46,7 +58,11 @@ export class AllocationController {
     try {
       const { employeeId, assetId, status } = req.query;
       const where: any = {};
-      if (employeeId) where.employeeId = employeeId as string;
+      if (!isStaff(req)) {
+        // Employees only ever see their own assignments, whatever filter they send
+        if (!req.user?.employeeId) return ApiResponse.success(res, [], 'No employee profile linked to user');
+        where.employeeId = req.user.employeeId;
+      } else if (employeeId) where.employeeId = employeeId as string;
       if (assetId) where.assetId = assetId as string;
       if (status) where.status = status as string;
 
@@ -76,7 +92,7 @@ export class AllocationController {
         return ApiResponse.success(res, [], 'No employee profile linked to user');
       }
       const assignments = await prisma.assetAssignment.findMany({
-        where: { employeeId: empId, status: { in: ['ACTIVE', 'ASSIGNED', 'PENDING_ACKNOWLEDGEMENT'] } },
+        where: { employeeId: empId, status: 'ACTIVE' },
         orderBy: { allocationDate: 'desc' },
         include: {
           asset: { include: { category: true } },

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/client.js';
+import { api, apiErrorMessage } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { BarChart3, Download, Printer, RefreshCw, FileSpreadsheet, ShieldAlert, Wrench, KeyRound, PackageCheck } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
+import { notify } from '../components/ui/dialogs.js';
 
 export const ReportsPage: React.FC = () => {
   const { formatCurrency } = useBranding();
@@ -48,13 +49,7 @@ export const ReportsPage: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Export error:', err);
-      // Fallback with query token if direct blob download encounters issue
-      const token = localStorage.getItem('token');
-      if (token) {
-        window.open(`/api/v1/reports/export?entity=${activeReport}&format=${format}&token=${encodeURIComponent(token)}`, '_blank');
-      } else {
-        alert('Failed to export report. Please verify login.');
-      }
+      notify(apiErrorMessage(err, 'Failed to export report. Please check your access and try again.'));
     } finally {
       setExporting(null);
     }

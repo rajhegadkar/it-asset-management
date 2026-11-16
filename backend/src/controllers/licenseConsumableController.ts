@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { LicenseService } from '../services/licenseService.js';
 import { ConsumableService } from '../services/consumableService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+import { isAdmin } from '../middlewares/auth.js';
 
 export class LicenseController {
   static async getLicenses(req: Request, res: Response, next: NextFunction) {
@@ -12,6 +13,7 @@ export class LicenseController {
         type: type as string,
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 20,
+        revealKeys: isAdmin(req),
       });
       return ApiResponse.success(res, result.licenses, 'Licenses retrieved', 200, result.pagination);
     } catch (error) {
@@ -30,7 +32,7 @@ export class LicenseController {
 
   static async getLicenseById(req: Request, res: Response, next: NextFunction) {
     try {
-      const license = await LicenseService.getLicenseById(req.params.id);
+      const license = await LicenseService.getLicenseById(req.params.id, isAdmin(req));
       return ApiResponse.success(res, license, 'License retrieved');
     } catch (error) {
       next(error);
@@ -77,9 +79,10 @@ export class LicenseController {
 export class ConsumableController {
   static async getConsumables(req: Request, res: Response, next: NextFunction) {
     try {
-      const { category, lowStockOnly, page, limit } = req.query;
+      const { category, lowStockOnly, search, page, limit } = req.query;
       const result = await ConsumableService.getConsumables({
         category: category as string,
+        search: search as string,
         lowStockOnly: lowStockOnly === 'true',
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 20,

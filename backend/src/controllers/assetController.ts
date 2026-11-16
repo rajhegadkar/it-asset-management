@@ -57,6 +57,32 @@ const createAssetSchema = z.object({
   description: z.string().optional(),
 });
 
+// Update = same fields as create, all optional. Unknown keys (currentEmployeeId, isArchived,
+// assetId, barcode, disposal*, etc.) are stripped by zod, so they cannot be mass-assigned.
+const updateAssetSchema = createAssetSchema
+  .omit({ customAssetId: true })
+  .partial()
+  .extend({
+    // allow explicit clearing of optional dates / links from the edit form
+    purchaseDate: z.string().nullable().optional(),
+    warrantyStart: z.string().nullable().optional(),
+    warrantyEnd: z.string().nullable().optional(),
+    amcStart: z.string().nullable().optional(),
+    amcEnd: z.string().nullable().optional(),
+  });
+
+const DATE_KEYS = new Set(['purchaseDate', 'warrantyStart', 'warrantyEnd', 'amcStart', 'amcEnd']);
+/** Forms send null for empty DB values; treat null as "not provided" (dates: null = clear). */
+function normalizeNulls(body: any) {
+  if (!body || typeof body !== 'object') return body;
+  const out: any = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (v === null && !DATE_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export class AssetController {
   static async getAssets(req: Request, res: Response, next: NextFunction) {
     try {
@@ -74,7 +100,7 @@ export class AssetController {
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 20,
         sortBy: sortBy as string,
-        sortOrder: sortOrder as 'asc' | 'desc',
+        sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
       });
 
       return ApiResponse.success(res, result.assets, 'Assets retrieved successfully', 200, result.pagination);
@@ -94,7 +120,7 @@ export class AssetController {
 
   static async createAsset(req: Request, res: Response, next: NextFunction) {
     try {
-      const validated = createAssetSchema.parse(req.body);
+      const validated = createAssetSchema.parse(normalizeNulls(req.body));
       const asset = await AssetService.createAsset(validated, req.user);
       return ApiResponse.success(res, asset, 'Asset created successfully', 201);
     } catch (error) {
@@ -104,7 +130,8 @@ export class AssetController {
 
   static async updateAsset(req: Request, res: Response, next: NextFunction) {
     try {
-      const updated = await AssetService.updateAsset(req.params.id, req.body, req.user);
+      const validated = updateAssetSchema.parse(normalizeNulls(req.body));
+      const updated = await AssetService.updateAsset(req.params.id, validated as any, req.user);
       return ApiResponse.success(res, updated, 'Asset updated successfully');
     } catch (error) {
       next(error);
@@ -126,7 +153,7 @@ export class AssetController {
       let assetIds: string[] = [];
 
       if (Array.isArray(req.body?.assetIds)) {
-        assetIds = req.body.assetIds.filter(Boolean);
+        assetIds = req.body.assetIds.filter((x: unknown) => typeof x === 'string' && x).slice(0, 2000);
       } else if (typeof req.query?.assetIds === 'string') {
         assetIds = req.query.assetIds.split(',').map((s) => s.trim()).filter(Boolean);
       } else if (req.params?.id) {
@@ -138,7 +165,11 @@ export class AssetController {
       }
 
       const requestedStyle = (req.body?.style || req.query?.style as string) || undefined;
-      const pdfBuffer = await AssetService.generateLabelsPdf(assetIds, all, requestedStyle);
+      // Optional per-print choice: true/false. When absent the Customization Centre setting decides.
+      const rawShow = req.body?.showUserName ?? req.query?.showUserName;
+      const showUserName =
+        rawShow === true || rawShow === 'true' ? true : rawShow === false || rawShow === 'false' ? false : undefined;
+      const pdfBuffer = await AssetService.generateLabelsPdf(assetIds, all, requestedStyle, showUserName);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="asset-labels-v2.pdf"');
       return res.send(pdfBuffer);

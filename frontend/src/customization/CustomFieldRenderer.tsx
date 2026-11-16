@@ -3,6 +3,15 @@ import { CustomFieldDefinition, CustomFieldEntity } from './types.js';
 import { customizationApi } from './customizationApi.js';
 import { useBranding } from './BrandingContext.js';
 
+/** A default is only applied when it is valid for the field (older configs had a default outside the option list). */
+export function validDefault(f: { type?: string; options?: string[]; defaultValue?: any }): any {
+  const d = f.defaultValue;
+  if (d === undefined || d === null || d === '') return undefined;
+  if ((f.type === 'select' || f.type === 'multiselect') && Array.isArray(f.options) && f.options.length && !f.options.includes(String(d))) return undefined;
+  return d;
+}
+
+
 interface CustomFieldRendererProps {
   entity: CustomFieldEntity;
   values: Record<string, any>;
@@ -40,8 +49,8 @@ export const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
           const seeded = { ...values };
           let changed = false;
           activeFields.forEach((f) => {
-            if (seeded[f.name] === undefined && f.defaultValue !== undefined && f.defaultValue !== '') {
-              seeded[f.name] = f.defaultValue;
+            if (seeded[f.name] === undefined && validDefault(f) !== undefined) {
+              seeded[f.name] = validDefault(f);
               changed = true;
             }
           });
@@ -90,7 +99,7 @@ export const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         {fields.map((f) => {
-          const val = values[f.name] !== undefined ? values[f.name] : f.defaultValue || '';
+          const val = values[f.name] !== undefined ? values[f.name] : validDefault(f) ?? '';
 
           return (
             <div key={f.id} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>

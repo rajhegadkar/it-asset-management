@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/client.js';
+import { api, apiErrorMessage } from '../api/client.js';
 import { Ticket, Employee, Asset } from '../types/index.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { Modal } from '../components/Modal.js';
@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
 import { CustomFieldDisplay } from '../customization/CustomFieldDisplay.js';
+import { notify } from '../components/ui/dialogs.js';
+import { getAll } from '../api/fetchAll.js';
 
 export const TicketsPage: React.FC = () => {
   const { user } = useAuth();
@@ -71,8 +73,8 @@ export const TicketsPage: React.FC = () => {
   const fetchOptions = async () => {
     try {
       const [empRes, astRes] = await Promise.all([
-        api.get('/employees?limit=100'),
-        api.get('/assets?limit=100'),
+        getAll('/employees?limit=100'),
+        getAll('/assets?limit=100'),
       ]);
       setEmployees(empRes.data.data);
       setAssets(astRes.data.data);
@@ -103,7 +105,7 @@ export const TicketsPage: React.FC = () => {
       setCustomFields({});
       fetchTickets();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create ticket');
+      notify(err.response?.data?.message || 'Failed to create ticket');
     }
   };
 
@@ -121,7 +123,7 @@ export const TicketsPage: React.FC = () => {
       setSelectedTicket(updated.data.data);
       fetchTickets();
     } catch {
-      alert('Failed to post comment');
+      notify('Failed to post comment');
     }
   };
 
@@ -132,8 +134,8 @@ export const TicketsPage: React.FC = () => {
       const updated = await api.get(`/tickets/${selectedTicket.id}`);
       setSelectedTicket(updated.data.data);
       fetchTickets();
-    } catch {
-      alert('Failed to update ticket status');
+    } catch (err: any) {
+      notify(apiErrorMessage(err, 'Failed to update ticket status'));
     }
   };
 
@@ -380,7 +382,7 @@ export const TicketsPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Category
@@ -415,7 +417,7 @@ export const TicketsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Requester Employee *
@@ -597,7 +599,10 @@ export const TicketsPage: React.FC = () => {
             {/* Quick Status Changers */}
             <div className="flex items-center space-x-2 text-xs">
               <span className="font-semibold text-slate-500">Change Status:</span>
-              {['IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((st) => (
+              {(['RESOLVED', 'CLOSED'].includes(selectedTicket.status)
+                ? ['REOPENED', ...(selectedTicket.status === 'RESOLVED' ? ['CLOSED'] : [])]
+                : ['IN_PROGRESS', 'PENDING_USER', 'RESOLVED', 'CLOSED']
+              ).map((st) => (
                 <button
                   key={st}
                   onClick={() => handleUpdateStatus(st)}

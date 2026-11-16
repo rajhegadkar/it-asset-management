@@ -4,6 +4,12 @@ import { ImportExportService } from '../services/importExportService.js';
 import { ExcelService } from '../utils/excelService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { prisma } from '../config/db.js';
+import fs from 'fs';
+import { isAdmin } from '../middlewares/auth.js';
+import { logAuditEvent } from '../middlewares/audit.js';
+
+// Support engineers may export the asset register only; everything else (incl. employee PII) is admin-only
+const STAFF_EXPORTABLE = ['assets', 'inventory', 'warranty'];
 
 export class ReportImportController {
   // --- Reports ---
@@ -75,7 +81,10 @@ export class ReportImportController {
   static async exportData(req: Request, res: Response, next: NextFunction) {
     try {
       const { entity, format } = req.query; // entity: assets, inventory, warranty, allocations, maintenance, licenses, consumables, disposals, employees. format: xlsx, csv
-      const ent = (entity as string || 'assets').toLowerCase();
+      const ent = String(entity || 'assets').toLowerCase();
+      if (!isAdmin(req) && !STAFF_EXPORTABLE.includes(ent)) {
+        return ApiResponse.error(res, 'Only IT administrators can export this report.', 403, 'FORBIDDEN');
+      }
       let data: any[] = [];
 
       if (ent === 'assets' || ent === 'inventory') {
@@ -191,8 +200,10 @@ export class ReportImportController {
           'Status': e.employmentStatus,
         }));
       } else {
-        return ApiResponse.error(res, `Unsupported entity type: ${entity}`, 400);
+        return ApiResponse.error(res, 'Unsupported entity type', 400);
       }
+
+      void logAuditEvent({ action: 'EXPORT', entity: ent, newValues: { format: format || 'xlsx', rows: data.length, filters: req.query }, req });
 
       if (data.length === 0) {
         data = [{ 'Notice': `No records found for ${ent} audit report` }];
@@ -258,16 +269,27 @@ export class ReportImportController {
       }
 
       const type = req.params.type; // assets, employees
-      const rows = ExcelService.parseBuffer(req.file.buffer || req.file.path ? require('fs').readFileSync(req.file.path) : Buffer.from([]));
+      let rows: any[];
+      try {
+        const buffer = req.file.buffer || fs.readFileSync(req.file.path);
+        rows = ExcelService.parseBuffer(buffer);
+      } finally {
+        // Never keep uploaded spreadsheets (they contain employee PII) on disk
+        if (req.file.path) fs.promises.unlink(req.file.path).catch(() => undefined);
+      }
+      if (rows.length > 5000) {
+        return ApiResponse.error(res, 'Imports are limited to 5,000 rows per file. Split the file and try again.', 400, 'TOO_MANY_ROWS');
+      }
 
       let result;
       if (type === 'assets') {
         result = await ImportExportService.importAssets(rows, req.user);
       } else if (type === 'employees') {
-        result = await ImportExportService.importEmployees(rows);
+        result = await ImportExportService.importEmployees(rows, req.user);
       } else {
         return ApiResponse.error(res, 'Unsupported import type', 400);
       }
+      void logAuditEvent({ action: 'IMPORT', entity: type, newValues: { file: req.file.originalname, total: result.totalProcessed, success: result.successCount, failed: result.failedCount }, req });
 
       return ApiResponse.success(res, result, `Import process completed: ${result.successCount} succeeded, ${result.failedCount} failed.`);
     } catch (error) {

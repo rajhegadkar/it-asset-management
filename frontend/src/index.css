@@ -2,46 +2,480 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================================
+   ITAM design system v3 — "Aurora"
+   Tokens are CSS variables so the brand colour (Customization Center) and dark
+   mode switch instantly without rebuilding.
+   ========================================================================== */
+:root {
+  /* Brand scale (default indigo; replaced at runtime by brandTheme.ts) */
+  --brand-50: 243 242 253;
+  --brand-100: 230 229 251;
+  --brand-200: 206 203 248;
+  --brand-300: 171 166 243;
+  --brand-400: 128 122 236;
+  --brand-500: 97 89 232;
+  --brand-600: 79 70 229;
+  --brand-700: 66 59 192;
+  --brand-800: 54 48 156;
+  --brand-900: 43 38 124;
+  --brand-950: 30 27 87;
+
+  --canvas: 246 247 251;
+  --surface: 255 255 255;
+  --surface-muted: 248 250 252;
+  --line: 228 231 238;
+  --ink: 15 23 42;
+  --ink-soft: 100 116 139;
+  --sidebar: 11 16 32;
+
+  --header-h: 64px;
+  --bottom-nav-h: 64px;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: 8 11 20;
+  --surface: 15 20 33;
+  --surface-muted: 20 26 41;
+  --line: 33 41 60;
+  --ink: 241 245 249;
+  --ink-soft: 148 163 184;
+  color-scheme: dark;
+}
+
 @layer base {
-  body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Dark mode transition */
-  * {
-    transition-property: background-color, border-color, color;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+  body {
+    @apply bg-surface-canvas text-slate-900 dark:text-slate-100 font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01', 'tnum' 0;
   }
-  /* But NOT for transforms (prevents animation glitches) */
-  .transform, [class*="translate"], [class*="rotate"], [class*="scale"] {
-    transition-property: transform, opacity;
+
+  /* Numbers line up in tables and KPI tiles */
+  td,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Inputs: 16px on phones prevents iOS from zooming the page when a field is focused */
+  @media (max-width: 640px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: rgb(var(--brand-600));
+  }
+
+  ::selection {
+    background: rgb(var(--brand-500) / 0.25);
   }
 }
 
-/* Custom scrollbars */
+@layer components {
+  /* ---- Surfaces ---------------------------------------------------------- */
+  .card {
+    @apply bg-white dark:bg-surface border border-line rounded-2xl shadow-card;
+  }
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  /* ---- Buttons ----------------------------------------------------------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold
+      transition-[background-color,box-shadow,transform,color] duration-150 select-none
+      disabled:opacity-50 disabled:pointer-events-none active:scale-[.98];
+  }
+  .btn-primary {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20;
+  }
+  .btn-secondary {
+    @apply btn bg-white dark:bg-surface-muted text-slate-700 dark:text-slate-200 border border-line hover:bg-slate-50 dark:hover:bg-slate-800;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+  .icon-btn {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl text-slate-500 dark:text-slate-400
+      hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors;
+  }
+
+  /* ---- Forms ------------------------------------------------------------- */
+  .field {
+    @apply w-full h-10 px-3 rounded-xl bg-white dark:bg-surface-muted border border-line text-sm
+      text-slate-900 dark:text-slate-100 placeholder:text-slate-400
+      focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-shadow;
+  }
+  .label {
+    @apply block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5;
+  }
+
+  /* ---- Page header ------------------------------------------------------- */
+  .page-title {
+    @apply text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white;
+  }
+
+  /* ---- Skeleton ---------------------------------------------------------- */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-slate-200/70 dark:bg-slate-800;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+  .dark .skeleton::after {
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* =============================================================================
+   Global polish applied to every existing page (no per-page changes needed)
+   ========================================================================== */
+
+/* Cards and panels: the app's existing white/slate-900 rounded panels get the new surface look */
+.bg-white.rounded-xl,
+.bg-white.rounded-2xl {
+  border-color: rgb(var(--line));
+}
+.dark .dark\:bg-slate-900.rounded-xl,
+.dark .dark\:bg-slate-900.rounded-2xl {
+  background-color: rgb(var(--surface));
+  border-color: rgb(var(--line));
+}
+
+/* Form controls across all pages: consistent height, radius and focus ring */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+select {
+  min-height: 2.5rem;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: rgb(var(--brand-500)) !important;
+  box-shadow: 0 0 0 4px rgb(var(--brand-500) / 0.15) !important;
+}
+
+/* Keyboard focus ring for everything else */
+:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+}
+
+/* Smooth theme change only while switching (a permanent `* { transition }` made the whole app sluggish) */
+.theme-switching,
+.theme-switching * {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+}
+
+/* Touch devices: comfortable tap targets (WCAG 2.5.5 / Apple HIG ~44px) */
+@media (pointer: coarse) {
+  button:not(.tap-compact),
+  [role='button'],
+  a.btn,
+  select {
+    min-height: 40px;
+  }
+  button:not(.tap-compact):has(> svg:only-child) {
+    min-width: 40px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Tables ------------------------------------------------------------------- */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+thead th {
+  @apply text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400;
+}
+tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+/* Responsive tables: below 768px every table marked .rt becomes a stack of cards.
+   Labels come from the column headers (added automatically by useResponsiveTables). */
+@media (max-width: 767px) {
+  table.rt,
+  table.rt tbody,
+  table.rt tr,
+  table.rt td {
+    display: block;
+    width: 100%;
+  }
+  table.rt {
+    min-width: 0 !important;
+  }
+  table.rt thead {
+    display: none;
+  }
+  table.rt tbody {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  table.rt tbody tr {
+    border: 1px solid rgb(var(--line));
+    border-radius: 1rem;
+    background: rgb(var(--surface));
+    padding: 0.5rem 0.875rem;
+    box-shadow: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  }
+  table.rt tbody td {
+    display: grid;
+    grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
+    align-items: start;
+    justify-items: end;
+    gap: 0.75rem;
+    padding: 0.5rem 0 !important;
+    border: 0 !important;
+    border-bottom: 1px dashed rgb(var(--line)) !important;
+    text-align: right;
+    white-space: normal !important;
+    min-height: 0;
+  }
+  table.rt tbody td:last-child {
+    border-bottom: 0 !important;
+  }
+  table.rt tbody td > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* cells with several inline children: keep them together on the right */
+  table.rt tbody td > :not(:first-child) {
+    grid-column: 2;
+  }
+  table.rt tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 40%;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgb(var(--ink-soft));
+    padding-top: 2px;
+  }
+  table.rt tbody td[data-label=''],
+  table.rt tbody td[colspan] {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+  }
+  /* selection checkbox column: tuck it into the card's corner */
+  table.rt tbody td[data-label='']:has(> input[type='checkbox']) {
+    justify-content: flex-start;
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  table.rt tbody td[data-label='']::before,
+  table.rt tbody td[colspan]::before {
+    display: none;
+  }
+  /* actions row: buttons spread out */
+  table.rt tbody td[data-label='Actions'] > div,
+  table.rt tbody td[data-label='Action'] > div {
+    justify-content: flex-end;
+  }
+  /* hide the "scroll right to see more" hints: no longer needed */
+  .rt-scroll-hint {
+    display: none !important;
+  }
+}
+
+/* Momentum scrolling */
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  @apply bg-slate-300/80 dark:bg-slate-700 rounded-full;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400 dark:bg-slate-600;
 }
 
-/* Mobile: enable momentum scrolling on tables */
-.overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
+/* Safe areas (iPhone notch / home indicator) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
 }
 
-/* Better focus rings for accessibility */
-:focus-visible {
-  @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+/* Route transition. Fill mode "backwards" (not "both"): a transform kept after the animation would turn
+   the page into the containing block for position:fixed dialogs and push them off-screen. */
+.page-enter {
+  animation: fade-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Print: hide app chrome */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =============================================================================
+   Page-level layout rules (apply to every existing page)
+   ========================================================================== */
+main h1 {
+  @apply text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white;
+}
+main h1 + p,
+main h1 + div > p {
+  @apply text-sm text-slate-500 dark:text-slate-400;
+}
+
+/* Phones: header action rows wrap into full-width, evenly sized buttons */
+@media (max-width: 639px) {
+  main .page-enter > div > div:first-child:has(h1) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  main .page-enter > div > div:first-child:has(h1) > div:last-child:not(:first-child) {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  main .page-enter > div > div:first-child:has(h1) > div:last-child:not(:first-child) > * {
+    margin: 0 !important;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* Filter bars: search on its own row, dropdowns two per row, all the same height */
+  main div.flex:has(> select),
+  main div.flex:has(> .relative > input[type='text']),
+  main div.flex:has(> .relative > input[type='search']) {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  main div.flex:has(> select) > *,
+  main div.flex:has(> .relative > input[type='text']) > * {
+    margin: 0 !important;
+  }
+  main div.flex:has(> select) > select {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: 0;
+    width: auto !important;
+  }
+  main div.flex:has(> .relative > input[type='text']) > .relative,
+  main div.flex:has(> .relative > input[type='search']) > .relative {
+    flex: 1 1 100%;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  main div.flex:has(> select) > button {
+    flex: 1 1 auto;
+  }
+
+  /* Tab strips scroll sideways instead of wrapping into several rows */
+  main [role='tablist'],
+  main nav:has(> button + button) {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  main [role='tablist'] > *,
+  main nav:has(> button + button) > button {
+    flex-shrink: 0;
+  }
+}
+
+/* Cards and panels everywhere get the new soft shadow */
+main .rounded-xl.border,
+main .rounded-2xl.border {
+  box-shadow: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+}
+
+/* Desktop tables: identifiers (tags, IDs, ticket numbers) never break mid-word */
+@media (min-width: 768px) {
+  td .font-mono,
+  td code,
+  td a.font-mono {
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Accessibility: WCAG AA text contrast in light mode (axe audit, Nov 2026).
+ * Tailwind's slate-400/500, emerald-500/600 and orange-600 fall below 4.5:1 on
+ * white and on the app canvas. :where() keeps specificity at 0,1,0 so hover:,
+ * focus: and dark: variants still win.
+ * ------------------------------------------------------------------------- */
+:where(html:not(.dark)) .text-slate-400 { color: #64748b; }
+:where(html:not(.dark)) .text-slate-500 { color: #526075; }
+:where(html:not(.dark)) .text-emerald-600 { color: #047857; }
+:where(html:not(.dark)) .text-orange-600 { color: #c2410c; }
+:where(html:not(.dark)) .bg-emerald-600 { background-color: #047857; }
+:where(html:not(.dark)) .bg-emerald-500 { background-color: #047857; }
+/* the sidebar is always dark, so keep its original light-on-dark greys */
+:where(html:not(.dark)) :where(.on-dark) .text-slate-400 { color: #94a3b8; }
+:where(html:not(.dark)) :where(.on-dark) .text-slate-500 { color: #8d9ab0; }

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -6,66 +6,100 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  description?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-  maxWidth = 'lg',
-}) => {
+let openModals = 0;
+
+/**
+ * Dialog that is a centred card on desktop and a full-width bottom sheet on phones.
+ * Locks page scroll, closes on Esc / backdrop, moves focus into the dialog and back afterwards.
+ */
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth = 'lg', description }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    openModals++;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Tab' && panelRef.current) {
+        // keep keyboard focus inside the dialog
+        const focusables = panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', onKey);
+    const t = setTimeout(() => {
+      const firstField = panelRef.current?.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea');
+      (firstField && window.matchMedia('(pointer: fine)').matches ? firstField : panelRef.current)?.focus();
+    }, 40);
     return () => {
-      document.body.style.overflow = 'unset';
-      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(t);
+      openModals = Math.max(0, openModals - 1);
+      if (openModals === 0) document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+      previouslyFocused?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const widthClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-    '2xl': 'max-w-2xl',
-    '3xl': 'max-w-3xl',
+    sm: 'sm:max-w-sm',
+    md: 'sm:max-w-md',
+    lg: 'sm:max-w-lg',
+    xl: 'sm:max-w-xl',
+    '2xl': 'sm:max-w-2xl',
+    '3xl': 'sm:max-w-3xl',
+    '4xl': 'sm:max-w-4xl',
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-          onClick={onClose}
-        />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="absolute inset-0 bg-slate-950/50 animate-fade-in" onClick={onClose} />
 
-        <div
-          className={`relative transform overflow-hidden rounded-xl bg-white dark:bg-slate-900 text-left shadow-2xl transition-all sm:my-8 w-full ${widthClasses} border border-slate-200 dark:border-slate-800`}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 py-4 max-h-[80vh] overflow-y-auto">{children}</div>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className={`relative flex flex-col w-full ${widthClasses} max-h-[92dvh] sm:max-h-[88vh] bg-white dark:bg-surface text-left
+          rounded-t-3xl sm:rounded-2xl shadow-pop border border-line outline-none animate-sheet-up sm:animate-pop-in`}
+      >
+        {/* drag handle (phones) */}
+        <div className="sm:hidden flex justify-center pt-2.5">
+          <span className="h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-700" />
         </div>
+
+        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 pt-3 sm:pt-5 pb-4 border-b border-line">
+          <div className="min-w-0">
+            <h3 id={titleId} className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
+              {title}
+            </h3>
+            {description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close dialog" className="icon-btn -mr-2 -mt-1 shrink-0" data-testid="modal-close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 pb-safe">{children}</div>
       </div>
     </div>
   );

@@ -1,0 +1,18 @@
+{
+  "name": "itam-ui-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automated UI tests for every page and workflow, on desktop, tablet and phone",
+  "scripts": {
+    "setup": "npx playwright install chromium",
+    "test": "playwright test",
+    "test:desktop": "playwright test --project=desktop",
+    "test:tablet": "playwright test --project=tablet",
+    "test:phone": "playwright test --project=phone",
+    "test:headed": "playwright test --project=desktop --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

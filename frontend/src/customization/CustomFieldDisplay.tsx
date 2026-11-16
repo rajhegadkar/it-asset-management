@@ -4,6 +4,8 @@ import { customizationApi } from './customizationApi.js';
 import { useBranding } from './BrandingContext.js';
 import { CustomFieldRenderer } from './CustomFieldRenderer.js';
 import { Edit2, Save, X, CheckCircle2, Sliders } from 'lucide-react';
+import { notify } from '../components/ui/dialogs.js';
+import { validDefault } from './CustomFieldRenderer.js';
 
 interface CustomFieldDisplayProps {
   customFields?: string | Record<string, any> | null;
@@ -85,8 +87,8 @@ export const CustomFieldDisplay: React.FC<CustomFieldDisplayProps> = ({
     // Seed edit values from parsed + defaults
     const initial: Record<string, any> = { ...parsed };
     activeDefs.forEach((f) => {
-      if (initial[f.name] === undefined && f.defaultValue !== undefined) {
-        initial[f.name] = f.defaultValue;
+      if (initial[f.name] === undefined && validDefault(f as any) !== undefined) {
+        initial[f.name] = validDefault(f as any);
       }
     });
     setEditValues(initial);
@@ -108,7 +110,7 @@ export const CustomFieldDisplay: React.FC<CustomFieldDisplayProps> = ({
       setTimeout(() => setSaveMessage(null), 3000);
       setIsEditing(false);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update custom attributes');
+      notify(err.response?.data?.message || 'Failed to update custom attributes');
     } finally {
       setSaveLoading(false);
     }

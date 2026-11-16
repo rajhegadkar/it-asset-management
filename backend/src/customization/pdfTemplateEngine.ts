@@ -10,6 +10,7 @@ export const DEFAULT_PDF_LABEL_CONFIG: PdfLabelConfig = {
   showLogo: true,
   headerText: 'PROPERTY OF IT OPERATIONS',
   includeFields: ['assetTag', 'serialNumber', 'model', 'category'],
+  userNameOnLabel: 'ASK',
   customHandoverTerms:
     '1. The employee acknowledges receipt of the designated corporate hardware equipment in good operating condition.\n' +
     '2. The equipment remains the exclusive property of the company and must be returned immediately upon separation or IT recall.\n' +
@@ -34,6 +35,9 @@ export class PdfTemplateEngine {
 
   static async updateConfig(updates: Partial<PdfLabelConfig>): Promise<PdfLabelConfig> {
     const current = await this.getConfig();
+    if (updates.userNameOnLabel !== undefined && !['SHOW', 'HIDE', 'ASK'].includes(updates.userNameOnLabel as string)) {
+      throw { statusCode: 400, message: 'userNameOnLabel must be SHOW, HIDE or ASK', code: 'VALIDATION_ERROR' };
+    }
     const updated: PdfLabelConfig = {
       ...current,
       ...updates,

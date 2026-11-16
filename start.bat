@@ -29,6 +29,17 @@ if not exist "backend\.env" (
     if exist "backend\.env.example" copy "backend\.env.example" "backend\.env" >nul
 )
 
+:: Keep dependencies and the database schema in step with the code (safe: never drops data)
+echo [0/2] Syncing backend dependencies and database schema...
+call npm --prefix backend install --no-audit --no-fund >nul 2>&1
+call npm --prefix backend run prisma:generate >nul 2>&1
+call npm --prefix backend run prisma:push
+if errorlevel 1 (
+    echo [ERROR] Database schema update failed. See the message above.
+    pause
+    exit /b 1
+)
+
 :: Start Backend API Server
 echo [1/2] Starting Backend API Server on Port 5000...
 start "ITAM Backend API (Port 5000)" cmd /k "cd /d "%~dp0backend" && npm run dev"

@@ -8,7 +8,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-itam_db}
     ports:
       - "5432:5432"
@@ -50,9 +50,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_secure_2026}@postgres:5432/${POSTGRES_DB:-itam_db}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-production_secure_jwt_secret_change_me_9921}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-production_secure_refresh_jwt_secret_9921}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-itam_db}?schema=public
+      # Required: the app refuses to start in production with missing or placeholder secrets
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET (48+ random chars) in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?Set SETTINGS_ENCRYPTION_KEY in .env}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?Set BACKUP_ENCRYPTION_KEY in .env (store a copy off this server)}
+      TRUST_PROXY: 1
       APP_URL: ${APP_URL:-http://localhost:5000}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5000,http://localhost:80}
       STORAGE_TYPE: local
@@ -66,6 +70,7 @@ services:
       - "5000:5000"
     volumes:
       - itam_uploads:/app/backend/uploads
+      - itam_backups:/app/backend/backups
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/v1/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
@@ -85,9 +90,9 @@ services:
       - "443:443"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
-      - itam_uploads:/var/www/uploads:ro
 
 volumes:
   postgres_data:
   redis_data:
   itam_uploads:
+  itam_backups:

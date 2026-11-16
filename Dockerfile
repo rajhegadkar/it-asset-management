@@ -49,4 +49,5 @@ RUN mkdir -p /app/backend/uploads && chown -R node:node /app
 USER node
 EXPOSE 5000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/server.js"]
+# Schema sync without --accept-data-loss: a destructive change fails loudly instead of dropping data
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/server.js"]

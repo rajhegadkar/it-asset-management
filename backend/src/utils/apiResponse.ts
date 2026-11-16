@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { stripSensitive } from './sanitize.js';
 
 export interface ApiResponseOptions<T = any> {
   res: Response;
@@ -26,7 +27,8 @@ export class ApiResponse {
     return res.status(statusCode).json({
       success: true,
       message,
-      data,
+      // Defence in depth: never let password hashes / 2FA secrets leave the server
+      data: stripSensitive(data),
       ...(pagination ? { pagination } : {}),
     });
   }

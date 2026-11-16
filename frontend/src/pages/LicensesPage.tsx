@@ -4,6 +4,8 @@ import { SoftwareLicense, Employee, Vendor } from '../types/index.js';
 import { Modal } from '../components/Modal.js';
 import { KeyRound, Plus, RefreshCw, Users, ShieldAlert, CheckCircle2, UserPlus, X, Edit2, Trash2 } from 'lucide-react';
 import { useBranding } from '../customization/BrandingContext.js';
+import { confirmDialog, notify } from '../components/ui/dialogs.js';
+import { getAll } from '../api/fetchAll.js';
 
 export const LicensesPage: React.FC = () => {
   const { branding, formatCurrency } = useBranding();
@@ -64,7 +66,7 @@ export const LicensesPage: React.FC = () => {
   const fetchMasterData = async () => {
     try {
       const [empRes, vndRes] = await Promise.all([
-        api.get('/employees?limit=100'),
+        getAll('/employees?limit=100'),
         api.get('/org/vendors'),
       ]);
       setEmployees(empRes.data.data);
@@ -90,7 +92,7 @@ export const LicensesPage: React.FC = () => {
       setCreateModalOpen(false);
       fetchLicenses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create license');
+      notify(err.response?.data?.message || 'Failed to create license');
     }
   };
 
@@ -103,17 +105,17 @@ export const LicensesPage: React.FC = () => {
       setAssignModalOpen(false);
       fetchLicenses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign license');
+      notify(err.response?.data?.message || 'Failed to assign license');
     }
   };
 
   const handleRevokeSeat = async (assignmentId: string) => {
-    if (!confirm('Are you sure you want to revoke this license seat?')) return;
+    if (!await confirmDialog('Are you sure you want to revoke this license seat?')) return;
     try {
       await api.delete(`/licenses/assignment/${assignmentId}`);
       fetchLicenses();
     } catch {
-      alert('Failed to revoke license seat');
+      notify('Failed to revoke license seat');
     }
   };
 
@@ -147,21 +149,21 @@ export const LicensesPage: React.FC = () => {
       setEditingLicense(null);
       fetchLicenses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update license');
+      notify(err.response?.data?.message || 'Failed to update license');
     }
   };
 
   const handleDeleteLicense = async (lic: SoftwareLicense) => {
     if ((lic.assignments || []).length > 0) {
-      if (!confirm(`Warning: License "${lic.softwareName}" has ${lic.assignments?.length} active assigned seats. Deleting will revoke all assignments. Proceed?`)) return;
+      if (!await confirmDialog(`Warning: License "${lic.softwareName}" has ${lic.assignments?.length} active assigned seats. Deleting will revoke all assignments. Proceed?`)) return;
     } else {
-      if (!confirm(`Are you sure you want to delete license "${lic.softwareName}"?`)) return;
+      if (!await confirmDialog(`Are you sure you want to delete license "${lic.softwareName}"?`)) return;
     }
     try {
       await api.delete(`/licenses/${lic.id}`);
       fetchLicenses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete license');
+      notify(err.response?.data?.message || 'Failed to delete license');
     }
   };
 
@@ -337,7 +339,7 @@ export const LicensesPage: React.FC = () => {
       >
         <form onSubmit={handleCreateLicense} className="space-y-4">
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Software Name *
@@ -367,7 +369,7 @@ export const LicensesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   License Type
@@ -400,7 +402,7 @@ export const LicensesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   License Key / Activation Token
@@ -533,7 +535,7 @@ export const LicensesPage: React.FC = () => {
       >
         <form onSubmit={handleUpdateLicense} className="space-y-4">
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Software / Product Name *
@@ -561,7 +563,7 @@ export const LicensesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Software Version / Edition
@@ -605,7 +607,7 @@ export const LicensesPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Total Seats Purchased *

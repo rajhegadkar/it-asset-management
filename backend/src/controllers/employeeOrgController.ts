@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { EmployeeService } from '../services/employeeService.js';
 import { DepartmentLocationVendorService } from '../services/departmentLocationVendorService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+import { isStaff } from '../middlewares/auth.js';
 
 export class EmployeeController {
   static async getEmployees(req: Request, res: Response, next: NextFunction) {
@@ -24,6 +25,9 @@ export class EmployeeController {
   static async getEmployeeById(req: Request, res: Response, next: NextFunction) {
     try {
       const employee = await EmployeeService.getEmployeeById(req.params.id);
+      if (!isStaff(req) && employee.id !== req.user?.employeeId) {
+        return ApiResponse.error(res, 'You can only view your own employee profile.', 403, 'FORBIDDEN');
+      }
       return ApiResponse.success(res, employee, 'Employee details retrieved');
     } catch (error) {
       next(error);
@@ -50,8 +54,8 @@ export class EmployeeController {
 
   static async deleteEmployee(req: Request, res: Response, next: NextFunction) {
     try {
-      await EmployeeService.deleteEmployee(req.params.id);
-      return ApiResponse.success(res, null, 'Employee deleted successfully');
+      const result = await EmployeeService.deleteEmployee(req.params.id);
+      return ApiResponse.success(res, result, result.deactivated ? 'Employee has history, so the profile was deactivated instead of deleted' : 'Employee deleted successfully');
     } catch (error) {
       next(error);
     }

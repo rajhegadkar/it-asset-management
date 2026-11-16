@@ -19,6 +19,7 @@ import {
   FileCheck,
   Zap,
 } from 'lucide-react';
+import { confirmDialog, notify } from '../components/ui/dialogs.js';
 
 export type CloudStorageProvider = 'LOCAL_NAS' | 'GOOGLE_DRIVE' | 'MICROSOFT_ONEDRIVE' | 'AMAZON_S3' | 'WEBDAV';
 export type BackupFrequency = 'MANUAL' | 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
@@ -144,7 +145,7 @@ export const DisasterRecoveryCenter: React.FC = () => {
   };
 
   const handleCreateBackup = async () => {
-    if (!confirm('Initiate immediate full system snapshot? This captures all database tables, attachments, and customizations.')) {
+    if (!await confirmDialog('Initiate immediate full system snapshot? This captures all database tables, attachments, and customizations.')) {
       return;
     }
     setActionLoading(true);
@@ -152,10 +153,15 @@ export const DisasterRecoveryCenter: React.FC = () => {
     try {
       const res = await api.post('/system/backup/create');
       const filename = res.data.data.filename;
-      setFeedback({
-        type: 'success',
-        message: `Backup archive created: ${filename}. Initiating automatic download...`,
-      });
+      const cloud = res.data.data.cloud;
+      setFeedback(
+        cloud && !cloud.success
+          ? { type: 'error', message: res.data.message || `Backup ${filename} saved locally, but the off-site copy failed.` }
+          : {
+              type: 'success',
+              message: `Backup archive created: ${filename}${cloud?.success ? ` — ${cloud.message}` : ''}. Starting download...`,
+            }
+      );
 
       // Automatically trigger download
       handleDownload(filename);
@@ -182,15 +188,12 @@ export const DisasterRecoveryCenter: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        window.open(`/api/v1/system/backup/download/${filename}?token=${encodeURIComponent(token)}`, '_blank');
-      }
+      setFeedback({ type: 'error', message: `Could not download ${filename}. Please try again.` });
     }
   };
 
   const handleDeleteBackup = async (filename: string) => {
-    if (!confirm(`Are you sure you want to delete backup ${filename}? This action cannot be undone.`)) {
+    if (!await confirmDialog(`Are you sure you want to delete backup ${filename}? This action cannot be undone.`)) {
       return;
     }
     try {
@@ -210,11 +213,11 @@ export const DisasterRecoveryCenter: React.FC = () => {
 
   const handleExecuteRestore = async () => {
     if (!selectedFileForRestore) {
-      alert('Please choose a valid .itam-backup or .zip file to restore.');
+      notify('Please choose a valid .itam-backup or .zip file to restore.');
       return;
     }
 
-    if (!confirm('CRITICAL ACTION: Restoring will overwrite existing records and configuration with the contents of this backup archive. Proceed?')) {
+    if (!await confirmDialog('CRITICAL ACTION: Restoring will overwrite existing records and configuration with the contents of this backup archive. Proceed?')) {
       return;
     }
 
@@ -232,7 +235,7 @@ export const DisasterRecoveryCenter: React.FC = () => {
       setRestoreResult(res.data.data);
       setFeedback({
         type: 'success',
-        message: `System successfully restored! Total restored units: ${res.data.data.totalRecords}. Refresh page to load restored state.`,
+        message: `System successfully restored! Total restored units: ${res.data.data.totalRecords}.${(res.data.data.warnings || []).length ? ' ' + res.data.data.warnings.join(' ') : ''} Everyone must sign in again.`,
       });
       setSelectedFileForRestore(null);
     } catch (err: any) {

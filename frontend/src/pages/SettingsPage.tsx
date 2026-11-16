@@ -30,6 +30,7 @@ import { useBranding } from '../customization/BrandingContext.js';
 import { useToast } from '../context/ToastContext.js';
 import { useAuth } from '../context/AuthContext.js';
 import { Modal } from '../components/Modal.js';
+import { confirmDialog } from '../components/ui/dialogs.js';
 
 export const SettingsPage: React.FC = () => {
   const { showSuccess, showError, showWarning } = useToast();
@@ -152,7 +153,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleDeleteDept = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete department "${name}"?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete department "${name}"?`)) return;
     try {
       await api.delete(`/org/departments/${id}`);
       showSuccess(`Department "${name}" deleted`);
@@ -181,7 +182,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleDeleteLoc = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete location "${name}"?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete location "${name}"?`)) return;
     try {
       await api.delete(`/org/locations/${id}`);
       showSuccess(`Location "${name}" deleted`);
@@ -210,7 +211,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleDeleteCat = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete category "${name}"?`)) return;
     try {
       await api.delete(`/org/categories/${id}`);
       showSuccess(`Category "${name}" deleted`);
@@ -239,7 +240,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleDeleteVnd = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete vendor "${name}"?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete vendor "${name}"?`)) return;
     try {
       await api.delete(`/org/vendors/${id}`);
       showSuccess(`Vendor "${name}" deleted`);
@@ -328,7 +329,7 @@ export const SettingsPage: React.FC = () => {
 
   const fetchHealth = async () => {
     try {
-      const res = await api.get('/health');
+      const res = await api.get('/system/health');
       setHealthStatus(res.data.data);
     } catch (e) {}
   };
@@ -573,7 +574,7 @@ export const SettingsPage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   IT Support Email
@@ -599,7 +600,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   GST / VAT / Tax ID
@@ -1003,7 +1004,7 @@ export const SettingsPage: React.FC = () => {
               Configure sequential numbering rules applied to newly created IT equipment.
             </p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Asset Prefix
@@ -1793,7 +1794,7 @@ export const SettingsPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Location Code *
@@ -1957,7 +1958,7 @@ export const SettingsPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Vendor Code *
@@ -1986,7 +1987,7 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Support Email

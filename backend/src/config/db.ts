@@ -28,7 +28,7 @@ export async function connectDB() {
       ) {
         console.log('⚠️ Database tables missing. Running automatic schema migration...');
         const backendDir = path.resolve(__dirname, '../..');
-        execSync('npx prisma db push --accept-data-loss', {
+        execSync('npx prisma db push --skip-generate', {
           cwd: backendDir,
           stdio: 'inherit',
           env: { ...process.env, DATABASE_URL: env.DATABASE_URL },

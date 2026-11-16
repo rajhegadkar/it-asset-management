@@ -1,7 +1,7 @@
 {
   "name": "it-asset-management-suite",
-  "version": "2.2.0",
-  "description": "Enterprise IT Asset Management Platform (Release v2.2.0)",
+  "version": "3.0.0",
+  "description": "Enterprise IT Asset Management Platform (Release v3.0.0)",
   "private": true,
   "workspaces": [
     "backend",
@@ -28,6 +28,12 @@
     "prisma:seed": "npm --prefix backend run prisma:seed",
     "test:unit": "npm --prefix backend test",
     "test:e2e": "node test-all-logins.js",
-    "test": "npm run test:unit"
+    "test": "npm run test:unit",
+    "test:ui:setup": "npm --prefix e2e install && npm --prefix e2e run setup",
+    "test:ui": "npm --prefix e2e test",
+    "test:ui:desktop": "npm --prefix e2e run test:desktop",
+    "test:ui:tablet": "npm --prefix e2e run test:tablet",
+    "test:ui:phone": "npm --prefix e2e run test:phone",
+    "test:ui:report": "npm --prefix e2e run report"
   }
 }

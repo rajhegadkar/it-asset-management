@@ -6,6 +6,8 @@ import { AssetTrackerModal } from '../components/AssetTrackerModal.js';
 import { Wrench, Plus, RefreshCw, CheckCircle2, AlertCircle, Clock, Search, Tag, X } from 'lucide-react';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
 import { useBranding } from '../customization/BrandingContext.js';
+import { notify } from '../components/ui/dialogs.js';
+import { getAll } from '../api/fetchAll.js';
 
 export const MaintenancePage: React.FC = () => {
   const { branding, formatCurrency } = useBranding();
@@ -59,7 +61,7 @@ export const MaintenancePage: React.FC = () => {
   const fetchMasterData = async () => {
     try {
       const [astRes, vndRes] = await Promise.all([
-        api.get('/assets?limit=100'),
+        getAll('/assets?limit=100'),
         api.get('/org/vendors'),
       ]);
       setAssets(astRes.data.data);
@@ -88,7 +90,7 @@ export const MaintenancePage: React.FC = () => {
       setCustomFields({});
       fetchRecords();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to schedule maintenance');
+      notify(err.response?.data?.message || 'Failed to schedule maintenance');
     }
   };
 
@@ -105,7 +107,7 @@ export const MaintenancePage: React.FC = () => {
       setCompleteModalOpen(false);
       fetchRecords();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to complete maintenance');
+      notify(err.response?.data?.message || 'Failed to complete maintenance');
     }
   };
 
@@ -334,7 +336,7 @@ export const MaintenancePage: React.FC = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Maintenance Type
@@ -364,7 +366,7 @@ export const MaintenancePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Service Vendor
@@ -474,7 +476,7 @@ export const MaintenancePage: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Service Cost ({branding.currencySymbol || '$'})

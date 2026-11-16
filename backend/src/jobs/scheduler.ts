@@ -1,8 +1,22 @@
 import cron from 'node-cron';
 import { prisma } from '../config/db.js';
 import { logger } from '../config/logger.js';
-import { EmailService } from '../utils/emailService.js';
+import { env } from '../config/env.js';
+import { sendTemplatedEmail } from '../services/notificationTemplates.js';
 import { DisasterRecoveryService } from '../disasterRecovery/index.js';
+
+async function activeAdmins() {
+  return prisma.user.findMany({
+    where: { isActive: true, role: { name: { in: ['SUPER_ADMIN', 'IT_ADMIN'] } } },
+    select: { id: true, email: true },
+  });
+}
+
+/** True if this notification was already sent to this user in the last `hours`. */
+async function alreadyNotified(userId: string, type: string, title: string, hours = 20) {
+  const since = new Date(Date.now() - hours * 3600 * 1000);
+  return !!(await prisma.notification.findFirst({ where: { userId, type, title, createdAt: { gte: since } }, select: { id: true } }));
+}
 
 export class JobScheduler {
   private static isRunning = false;
@@ -11,6 +25,10 @@ export class JobScheduler {
    * Initializes all background cron schedules
    */
   static init() {
+    if (!env.SCHEDULER_ENABLED) {
+      logger.info('⏰ Background scheduler disabled on this instance (SCHEDULER_ENABLED=false).');
+      return;
+    }
     logger.info('⏰ Initializing Enterprise ITAM Background Job Scheduler...');
 
     // Run daily at midnight (0 0 * * *) or for testing every hour
@@ -60,21 +78,29 @@ export class JobScheduler {
           logger.info(`🔔 Found ${assets.length} assets with warranty expiring in ${days} days`);
 
           // Notify IT Admin users
-          const itAdmins = await prisma.user.findMany({
-            where: {
-              role: { name: { in: ['SUPER_ADMIN', 'IT_ADMIN'] } },
-            },
-          });
+          const itAdmins = await activeAdmins();
+          const title = `Warranty Expiry Alert (${days} Days)`;
 
           for (const admin of itAdmins) {
+            if (await alreadyNotified(admin.id, 'WARRANTY_EXPIRING', title)) continue;
             await prisma.notification.create({
               data: {
                 userId: admin.id,
                 type: 'WARRANTY_EXPIRING',
-                title: `Warranty Expiry Alert (${days} Days)`,
+                title,
                 message: `${assets.length} asset(s) warranty will expire in approx ${days} days. Review required.`,
-                link: '/reports/warranty',
+                link: '/reports',
               },
+            });
+          }
+          for (const a of assets.slice(0, 50)) {
+            await sendTemplatedEmail('WARRANTY_EXPIRING', 'expiry', itAdmins.map((x) => x.email), {
+              assetName: a.name,
+              assetTag: a.assetTag,
+              serialNumber: a.serialNumber,
+              expiryDate: a.warrantyEnd ? a.warrantyEnd.toISOString().slice(0, 10) : '',
+              daysRemaining: days,
+              vendorName: '',
             });
           }
         }
@@ -127,11 +153,26 @@ export class JobScheduler {
    */
   static async checkLowStockConsumables() {
     try {
-      const items = await prisma.consumable.findMany();
-      const lowStock = items.filter((item) => item.stockQuantity <= item.minQuantity);
-
+      const lowStock = await prisma.consumable.findMany({
+        where: { stockQuantity: { lte: prisma.consumable.fields.minQuantity } },
+        select: { name: true, stockQuantity: true, minQuantity: true },
+      });
       if (lowStock.length > 0) {
         logger.warn(`⚠️ Alert: ${lowStock.length} consumable items are at or below minimum threshold!`);
+        const title = 'Daily Low Stock Summary';
+        const list = lowStock.slice(0, 10).map((i) => `${i.name} (${i.stockQuantity}/${i.minQuantity})`).join(', ');
+        for (const admin of await activeAdmins()) {
+          if (await alreadyNotified(admin.id, 'LOW_STOCK', title)) continue;
+          await prisma.notification.create({
+            data: {
+              userId: admin.id,
+              type: 'LOW_STOCK',
+              title,
+              message: `${lowStock.length} item(s) at or below minimum stock: ${list}${lowStock.length > 10 ? '…' : ''}`,
+              link: '/consumables',
+            },
+          });
+        }
       }
     } catch (err) {
       logger.error('Error during low-stock consumable job:', err);
@@ -139,20 +180,39 @@ export class JobScheduler {
   }
 
   /**
-   * Monitor Helpdesk tickets nearing SLA breach
+   * SLA breach monitor: notifies the assigned engineer (or all active admins when unassigned)
+   * once per breach, and escalates critical/high tickets to admins as well.
    */
   static async checkTicketSlaBreaches() {
     try {
       const breachedTickets = await prisma.ticket.findMany({
         where: {
-          status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] },
+          status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'PENDING_VENDOR', 'REOPENED'] },
           slaDueDate: { lte: new Date() },
+          slaBreachNotifiedAt: null,
         },
-        include: { assignedEngineer: true },
+        select: { id: true, ticketNumber: true, subject: true, priority: true, assignedEngineerId: true, organizationId: true },
       });
-
-      if (breachedTickets.length > 0) {
-        logger.warn(`⚠️ SLA Alert: ${breachedTickets.length} tickets have exceeded due SLA timeline.`);
+      if (breachedTickets.length === 0) return;
+      logger.warn(`⚠️ SLA Alert: ${breachedTickets.length} tickets have exceeded due SLA timeline.`);
+      const admins = await activeAdmins();
+      for (const t of breachedTickets) {
+        const recipients = new Set<string>();
+        if (t.assignedEngineerId) recipients.add(t.assignedEngineerId);
+        if (!t.assignedEngineerId || t.priority === 'CRITICAL' || t.priority === 'HIGH') admins.forEach((a) => recipients.add(a.id));
+        if (recipients.size) {
+          await prisma.notification.createMany({
+            data: Array.from(recipients).map((userId) => ({
+              userId,
+              organizationId: t.organizationId,
+              type: 'SLA_BREACH',
+              title: `SLA breached: ${t.ticketNumber} (${t.priority})`,
+              message: t.subject,
+              link: `/tickets?id=${t.id}`,
+            })),
+          });
+        }
+        await prisma.ticket.update({ where: { id: t.id }, data: { slaBreachNotifiedAt: new Date() } });
       }
     } catch (err) {
       logger.error('Error during ticket SLA monitoring job:', err);

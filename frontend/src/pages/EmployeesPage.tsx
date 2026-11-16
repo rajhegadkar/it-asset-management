@@ -5,6 +5,7 @@ import { Modal } from '../components/Modal.js';
 import { ImportModal } from '../components/ImportModal.js';
 import { Users, Plus, Upload, Download, Search, RefreshCw, Mail, Phone, Laptop, Edit2, Trash2 } from 'lucide-react';
 import { CustomFieldRenderer } from '../customization/CustomFieldRenderer.js';
+import { confirmDialog, notify } from '../components/ui/dialogs.js';
 
 export const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -89,7 +90,7 @@ export const EmployeesPage: React.FC = () => {
       setCustomFields({});
       fetchEmployees();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create employee');
+      notify(err.response?.data?.message || 'Failed to create employee');
     }
   };
 
@@ -118,21 +119,21 @@ export const EmployeesPage: React.FC = () => {
       setEditingEmployee(null);
       fetchEmployees();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update employee');
+      notify(err.response?.data?.message || 'Failed to update employee');
     }
   };
 
   const handleDeleteEmployee = async (emp: Employee) => {
     if ((emp.assets || []).length > 0) {
-      alert(`Cannot delete employee "${emp.firstName} ${emp.lastName}" because they have ${emp.assets?.length} assigned assets. Please return or reallocate assets first.`);
+      notify(`Cannot delete employee "${emp.firstName} ${emp.lastName}" because they have ${emp.assets?.length} assigned assets. Please return or reallocate assets first.`);
       return;
     }
-    if (!confirm(`Are you sure you want to delete employee "${emp.firstName} ${emp.lastName}" (${emp.employeeId})?`)) return;
+    if (!await confirmDialog(`Are you sure you want to delete employee "${emp.firstName} ${emp.lastName}" (${emp.employeeId})?`)) return;
     try {
       await api.delete(`/employees/${emp.id}`);
       fetchEmployees();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete employee');
+      notify(err.response?.data?.message || 'Failed to delete employee');
     }
   };
 
@@ -304,7 +305,7 @@ export const EmployeesPage: React.FC = () => {
       >
         <form onSubmit={handleCreateEmployee} className="space-y-4">
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Employee ID *
@@ -348,7 +349,7 @@ export const EmployeesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Email Address *
@@ -377,7 +378,7 @@ export const EmployeesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Designation / Role
@@ -467,7 +468,7 @@ export const EmployeesPage: React.FC = () => {
       >
         <form onSubmit={handleUpdateEmployee} className="space-y-4">
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   First Name *
@@ -495,7 +496,7 @@ export const EmployeesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Email Address *
@@ -522,7 +523,7 @@ export const EmployeesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Designation / Role
@@ -553,7 +554,7 @@ export const EmployeesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Department

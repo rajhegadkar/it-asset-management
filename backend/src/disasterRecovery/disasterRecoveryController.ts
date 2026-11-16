@@ -4,7 +4,7 @@ import fs from 'fs';
 import { DisasterRecoveryService } from './disasterRecoveryService.js';
 import { logger } from '../config/logger.js';
 
-const BACKUP_DIR = path.resolve(process.cwd(), 'backups');
+const BACKUP_DIR = path.resolve(process.cwd(), process.env.BACKUP_DIR || 'backups');
 
 export class DisasterRecoveryController {
   /**
@@ -12,7 +12,7 @@ export class DisasterRecoveryController {
    */
   static async getConfig(req: Request, res: Response) {
     try {
-      const config = await DisasterRecoveryService.getConfig();
+      const config = await DisasterRecoveryService.getPublicConfig();
       return res.json({ success: true, data: config });
     } catch (err: any) {
       logger.error('Failed to get DR config:', err);
@@ -67,8 +67,11 @@ export class DisasterRecoveryController {
         data: {
           manifest: result.manifest,
           filename: result.filename,
+          cloud: result.cloud,
         },
-        message: `Backup archive ${result.filename} created successfully.`,
+        message: result.cloud && !result.cloud.success
+          ? `Backup ${result.filename} saved locally, but the off-site copy FAILED: ${result.cloud.message}`
+          : `Backup archive ${result.filename} created successfully.`,
       });
     } catch (err: any) {
       logger.error('Failed to create backup:', err);
@@ -124,7 +127,7 @@ export class DisasterRecoveryController {
         try {
           fs.unlinkSync(req.file.path);
         } catch {}
-      } else if (req.body && req.body.bundleData) {
+      } else if (req.body && typeof req.body.bundleData === 'string') {
         dataBuffer = req.body.bundleData;
       } else if (req.body && typeof req.body === 'object' && req.body.manifest) {
         dataBuffer = JSON.stringify(req.body);
@@ -144,7 +147,7 @@ export class DisasterRecoveryController {
       logger.error('Restore failed:', err);
       const status = err.statusCode || 500;
       return res.status(status).json({
-        error: err.message || 'Failed to restore system from backup archive',
+        error: status >= 500 && process.env.NODE_ENV === 'production' ? 'Failed to restore system from backup archive' : err.message || 'Failed to restore system from backup archive',
         code: err.code || 'RESTORE_ERROR',
       });
     }

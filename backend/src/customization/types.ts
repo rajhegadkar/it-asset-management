@@ -92,7 +92,11 @@ export interface PdfLabelConfig {
   headerText: string; // e.g. 'PROPERTY OF ACME CORP'
   includeFields: string[]; // ['assetTag', 'serialNumber', 'model', 'category']
   customHandoverTerms: string;
+  /** Print the assigned user's name on asset labels: always, never, or ask each time a label is printed. */
+  userNameOnLabel: LabelUserNameMode;
 }
+
+export type LabelUserNameMode = 'SHOW' | 'HIDE' | 'ASK';
 
 export interface FeatureFlagsConfig {
   enableSamLicenses: boolean;

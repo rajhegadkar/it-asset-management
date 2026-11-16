@@ -22,6 +22,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext.js';
+import { getAll } from '../api/fetchAll.js';
 
 const COMMON_ACCESSORIES = [
   'Original Laptop Charger',
@@ -90,8 +91,8 @@ export const AllocationPage: React.FC = () => {
     try {
       const [asgRes, astRes, empRes] = await Promise.all([
         api.get('/allocations/assignments'),
-        api.get('/assets?status=AVAILABLE&limit=100'),
-        api.get('/employees?limit=100'),
+        getAll('/assets?status=AVAILABLE&limit=100'),
+        getAll('/employees?limit=100'),
       ]);
       setAssignments(asgRes.data.data);
       setAvailableAssets(astRes.data.data);
@@ -467,7 +468,7 @@ export const AllocationPage: React.FC = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Allocation Type

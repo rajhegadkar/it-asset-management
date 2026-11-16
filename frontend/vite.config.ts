@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  base: './',
+  // Absolute base so deep links / page refreshes on nested routes (e.g. /portal/my-assets) load assets correctly
+  base: '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -17,10 +18,6 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-      '/uploads': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },

@@ -7,6 +7,8 @@ import { Asset } from '../types/index.js';
 import { Camera, QrCode, Search, ExternalLink, RefreshCw, CheckCircle, ArrowRightLeft, Wrench, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBranding } from '../customization/BrandingContext.js';
+import { notify } from './ui/dialogs.js';
+import { downloadAssetLabels } from './ui/labelPrint.js';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -314,20 +316,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <button
                 onClick={async () => {
                   try {
-                    const res = await api.post(
-                      '/assets/labels/pdf',
-                      { assetIds: [scannedAsset.id] },
-                      { responseType: 'blob' }
-                    );
-                    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', `label-${scannedAsset.assetId}.pdf`);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
+                    await downloadAssetLabels({ assetIds: [scannedAsset.id] }, `label-${scannedAsset.assetId}.pdf`);
                   } catch (e) {
-                    alert('Failed to generate label');
+                    notify('Failed to generate label');
                   }
                 }}
                 className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-medium"

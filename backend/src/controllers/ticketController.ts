@@ -3,6 +3,16 @@ import { TicketService } from '../services/ticketService.js';
 import { MaintenanceService } from '../services/maintenanceService.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { prisma } from '../config/db.js';
+import { isStaff } from '../middlewares/auth.js';
+
+async function assertTicketAccess(req: Request, ticketId: string) {
+  if (isStaff(req)) return;
+  const t = await prisma.ticket.findFirst({ where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] }, select: { requesterId: true } });
+  if (!t) throw { statusCode: 404, message: 'Ticket not found', code: 'TICKET_NOT_FOUND' };
+  if (!req.user?.employeeId || t.requesterId !== req.user.employeeId) {
+    throw { statusCode: 403, message: 'You can only view your own tickets.', code: 'FORBIDDEN' };
+  }
+}
 
 export class TicketController {
   static async getTickets(req: Request, res: Response, next: NextFunction) {
@@ -19,6 +29,8 @@ export class TicketController {
         search: search as string,
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 20,
+        // Employees only ever see tickets they raised, whatever filters they send
+        ...(isStaff(req) ? {} : { scopeRequesterId: req.user?.employeeId || null }),
       });
 
       return ApiResponse.success(res, result.tickets, 'Tickets retrieved', 200, result.pagination);
@@ -29,7 +41,8 @@ export class TicketController {
 
   static async getTicketById(req: Request, res: Response, next: NextFunction) {
     try {
-      const ticket = await TicketService.getTicketById(req.params.id);
+      await assertTicketAccess(req, req.params.id);
+      const ticket = await TicketService.getTicketById(req.params.id, { includeInternal: isStaff(req) });
       return ApiResponse.success(res, ticket, 'Ticket details retrieved');
     } catch (error) {
       next(error);
@@ -38,21 +51,24 @@ export class TicketController {
 
   static async createTicket(req: Request, res: Response, next: NextFunction) {
     try {
-      let requesterId = req.body.requesterId || req.user?.employeeId;
-      if (!requesterId) {
-        const emp = await prisma.employee.findFirst({
-          where: {
-            OR: [
-              ...(req.user?.id ? [{ userId: req.user.id }] : []),
-              ...(req.user?.email ? [{ email: req.user.email }] : []),
-            ],
-          },
-        }) || await prisma.employee.findFirst();
+      // Employees always raise tickets as themselves. Staff may raise on behalf of an employee.
+      let requesterId: string | null | undefined = isStaff(req) ? req.body.requesterId || req.user?.employeeId : req.user?.employeeId;
+      if (!requesterId && req.user?.id) {
+        const emp = await prisma.employee.findFirst({ where: { OR: [{ userId: req.user.id }, { email: req.user.email }] } });
         requesterId = emp?.id;
       }
-
       if (!requesterId) {
-        return ApiResponse.error(res, 'Requester employee profile is required', 400);
+        return ApiResponse.error(res, 'Your login is not linked to an employee profile. Ask IT to link it, or select a requester.', 400, 'REQUESTER_REQUIRED');
+      }
+      const requester = await prisma.employee.findUnique({ where: { id: requesterId } });
+      if (!requester) return ApiResponse.error(res, 'Requester employee not found', 400, 'REQUESTER_REQUIRED');
+      if (!isStaff(req)) {
+        // Employees cannot pick an engineer, and can only reference their own assets
+        delete req.body.assignedEngineerId;
+        if (req.body.assetId) {
+          const owns = await prisma.asset.findFirst({ where: { id: req.body.assetId, currentEmployeeId: requesterId } });
+          if (!owns) delete req.body.assetId;
+        }
       }
 
       const ticket = await TicketService.createTicket({
@@ -79,12 +95,14 @@ export class TicketController {
     try {
       const { comment, isInternal, attachments } = req.body;
       if (!comment) return ApiResponse.error(res, 'Comment text is required', 400);
+      await assertTicketAccess(req, req.params.id);
 
       const result = await TicketService.addComment(req.params.id, {
         comment,
         isInternal,
         attachments,
         user: req.user,
+        isStaff: isStaff(req),
       });
 
       return ApiResponse.success(res, result, 'Comment added to ticket', 201);

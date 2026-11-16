@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './Modal.js';
 import { api } from '../api/client.js';
 import { ShieldCheck, CheckSquare, FileText, Download, Check } from 'lucide-react';
+import { notify } from './ui/dialogs.js';
 
 interface HandoverSignModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export const HandoverSignModal: React.FC<HandoverSignModalProps> = ({
       if (onSignedSuccess) onSignedSuccess();
       onClose();
     } catch {
-      alert('Failed to submit acknowledgement.');
+      notify('Failed to submit acknowledgement.');
     } finally {
       setSubmitting(false);
     }
@@ -51,7 +52,7 @@ export const HandoverSignModal: React.FC<HandoverSignModalProps> = ({
       link.click();
       link.remove();
     } catch {
-      alert('Failed to generate PDF document');
+      notify('Failed to generate PDF document');
     }
   };
 

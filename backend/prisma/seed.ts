@@ -409,17 +409,20 @@ async function main() {
   });
 
   // 9. Users & Employees
+  // Demo accounts use well-known passwords. Outside development they must be changed at first sign-in.
+  const FORCE_PASSWORD_CHANGE = process.env.NODE_ENV === 'production' || process.env.SEED_FORCE_PASSWORD_CHANGE === 'true';
   const adminPasswordHash = await bcrypt.hash('Admin@123456', 10);
   const userPasswordHash = await bcrypt.hash('User@123456', 10);
 
   // Super Admin User
   const superAdminUser = await prisma.user.upsert({
     where: { email: 'admin@acme-corp.com' },
-    update: { passwordHash: adminPasswordHash },
+    update: {}, // never reset an existing user's password when the seed re-runs
     create: {
       email: 'admin@acme-corp.com',
       username: 'admin',
       passwordHash: adminPasswordHash,
+      mustChangePassword: FORCE_PASSWORD_CHANGE,
       firstName: 'Chief',
       lastName: 'Administrator',
       roleId: superAdminRole.id,
@@ -431,11 +434,12 @@ async function main() {
   // IT Admin User & Employee
   const itAdminUser = await prisma.user.upsert({
     where: { email: 'itadmin@acme-corp.com' },
-    update: { passwordHash: adminPasswordHash },
+    update: {}, // never reset an existing user's password when the seed re-runs
     create: {
       email: 'itadmin@acme-corp.com',
       username: 'itadmin',
       passwordHash: adminPasswordHash,
+      mustChangePassword: FORCE_PASSWORD_CHANGE,
       firstName: 'Alex',
       lastName: 'Mercer',
       phone: '+1 415-555-0101',
@@ -467,11 +471,12 @@ async function main() {
   // Support Engineer
   const supportUser = await prisma.user.upsert({
     where: { email: 'support@acme-corp.com' },
-    update: { passwordHash: adminPasswordHash },
+    update: {}, // never reset an existing user's password when the seed re-runs
     create: {
       email: 'support@acme-corp.com',
       username: 'support',
       passwordHash: adminPasswordHash,
+      mustChangePassword: FORCE_PASSWORD_CHANGE,
       firstName: 'Jason',
       lastName: 'Lee',
       phone: '+1 415-555-0102',
@@ -503,11 +508,12 @@ async function main() {
   // Regular Employee 1: John Doe
   const johnUser = await prisma.user.upsert({
     where: { email: 'john.doe@acme-corp.com' },
-    update: { passwordHash: userPasswordHash },
+    update: {}, // never reset an existing user's password when the seed re-runs
     create: {
       email: 'john.doe@acme-corp.com',
       username: 'johndoe',
       passwordHash: userPasswordHash,
+      mustChangePassword: FORCE_PASSWORD_CHANGE,
       firstName: 'John',
       lastName: 'Doe',
       phone: '+1 415-555-0155',
@@ -539,11 +545,12 @@ async function main() {
   // Regular Employee 2: Sarah Connor
   const sarahUser = await prisma.user.upsert({
     where: { email: 'sarah.connor@acme-corp.com' },
-    update: { passwordHash: userPasswordHash },
+    update: {}, // never reset an existing user's password when the seed re-runs
     create: {
       email: 'sarah.connor@acme-corp.com',
       username: 'sarahc',
       passwordHash: userPasswordHash,
+      mustChangePassword: FORCE_PASSWORD_CHANGE,
       firstName: 'Sarah',
       lastName: 'Connor',
       phone: '+1 415-555-0188',

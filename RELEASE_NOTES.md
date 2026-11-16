@@ -1,78 +1,49 @@
-# Release Notes - IT Asset Management (ITAM) Enterprise Suite v2.0.0
+# 🚀 Release Notes — Version 3.0.0 (v3.0.0)
 
-**Release Date:** October 16, 2026  
-**Version:** `v2.0.0`  
-**Deployment Target:** Production (GitHub & Render: `https://it-asset-management-q6ey.onrender.com/`)  
-**Audit Status:** Verified 100% Pass (68/68 Integration & E2E Tests, 30/30 Unit Tests)
+## Overview
+Enterprise IT Asset Management Platform (ITAM) **v3.0.0** is a major milestone release. This release brings comprehensive security hardening across all layers, completes full audit issue resolution, introduces atomic sequence generation, implements multi-cloud disaster recovery drivers, and provides 1-touch turnkey scripts for Windows, Linux, and macOS.
 
 ---
 
-## 🚀 Overview
+## 🔒 Security Hardening (Audit Remediations)
 
-Release `v2.0.0` represents a major milestone for the Enterprise IT Asset Management platform. This release introduces a fully configurable asset sticker label engine (supporting modern QR-only stickers, legacy 1D barcode stickers, and dual-format hybrid tags), complete user-directed label restructuring, extensive UI/UX alignment fixes across the webapp, and a comprehensive audit remediation ensuring 100% defect-free operational stability.
-
----
-
-## 🌟 Key New Features & Enhancements
-
-### 1. Configurable Asset Label Symbology (Settings Engine)
-* **Custom Sticker Symbology Selector:** Administrators can now toggle between three standard printable sticker formats directly under **Settings > Asset Numbering & Barcodes > Printable Asset Sticker Code Format**:
-  * **QR Code Only (Modern Standard):** High-density QR code with prominent Asset ID pill, Serial Number, multi-line Equipment Model, and assigned User. No 1D barcode bars.
-  * **Both QR & 1D Barcode (Dual Hybrid):** Top-right QR code for mobile camera audits paired with bottom centered Code128 barcode for handheld laser scanners.
-  * **1D Barcode Only (Classic Legacy):** Full-width specifications paired with prominent centered Code128 barcode.
-* **Persistent Configuration:** Saved preferences persist to the database via `barcode.sticker_style` and automatically apply to both single asset prints and bulk fleet inventory label sheets.
-* **Ad-hoc Query Overrides:** The label generation API accepts dynamic `?style=QR_ONLY`, `?style=BOTH`, or `?style=BARCODE_ONLY` parameters for on-demand flexibility.
-
-### 2. Symmetrical Asset Sticker Layout Restructuring
-* **Hero QR Placement:** Top-left high-contrast QR code (`70 × 70 pt` inside `76 × 76 pt` white canvas) centered horizontally in the left column.
-* **Asset ID Badge:** Centered directly below the QR code (`84 × 34 pt` badge) highlighting `ASSET ID` in bold high-contrast blue (`#1d4ed8`).
-* **Serial Number Integration:** Positioned prominently at the top of the right details card for instant physical inventory verification.
-* **Multi-Line Model Name Wrapping:** Lengthy hardware model names (e.g., *HP ZBook Studio G10 Mobile Workstation*) wrap cleanly across lines with `lineGap: 1` and a dedicated `26 pt` text container, eliminating text clipping and collisions.
-* **User Custodian Display:** Replaced generic "Owner" label with **`USER`**, displaying the assigned employee's name or stock status (`Unassigned (In Stock)`).
-* **Grid Alignment & Non-Overlapping Footer:** All elements align to a balanced grid with symmetric `8 pt` margins. The bottom security notice (`PROPERTY OF ... • DO NOT REMOVE`) is pinned at `y + 150`, leaving `4 pt` of breathing room from content cards and `6 pt` margin to the outer boundary.
-
-### 3. Webapp UI/UX Alignment & Baseline Rectifications
-* **Uniform Action Toolbar:** Standardized all primary action buttons (`Print Selected`, `Print All Labels`, `Track Asset`, `Import`, `Export`, `New Asset`) to an identical `h-9` height.
-* **Filter Bar Alignment:** Search field, Category dropdown, Department dropdown, Status selector, and the "Apply Filter" button now share an exact `h-9` height with vertically centered search icons.
-* **Table Cell Middle Alignment:** Applied `align-middle` across all `<th>` and `<td>` elements to prevent vertical row drift.
-* **Baseline Shift Elimination:** Wrapped table action icons (`Track`, `View`, `Edit`, `Print`) in a unified `flex items-center justify-end space-x-1` container, eliminating the 2px browser baseline jump between links and buttons.
-* **Header Bar Uniformity:** Standardized global tracker, scanner, theme toggles, and notification buttons to pixel-perfect `h-8` heights.
+- **S1 (Zero Credential Leakage):** Completely eliminated password hashes and 2FA secrets from all API responses via Prisma `select` projections and outbound sanitization middleware.
+- **S2 (Protected System Settings):** Restricted `/system/settings` exclusively to Super Administrators. SMTP secrets, cloud credentials, and license keys are AES-256-GCM encrypted at rest in the database and masked (`••••••••`) in the UI.
+- **S3, S8, S11 (Role-Based Access Control & Tenant Isolation):** Enforced server-side role and ownership verification. Employees can only access their assigned hardware, tickets, and profile. Internal ticket notes are hidden from requesters.
+- **S4 (Safe File Restorations):** Backup restore handlers strictly sanitize and reject any target file path residing outside the designated upload directory.
+- **S5 (Workflow-Enforced State Transitions):** Enforced strict Zod input schemas on all mutation endpoints. Custody changes, asset archiving, and equipment disposal can only be performed via authorized multi-step audit workflows.
+- **S6 (Production Secret Guarding):** Production environments refuse to start if placeholder JWT secrets are detected. Demo quick-switchers and pre-filled passwords are automatically compiled out in production builds. Forced password change is enforced on initial sign-in for seeded accounts in production.
+- **S7 (Tamper-Proof Digital Signatures):** Asset handover certificates can only be signed by the verified assignee with biometric/touch stylus data; witnessed in-person staff signatures require explicit audit logging. Duplicate or post-return signing attempts are rejected with 409 Conflict.
+- **S9 (Authenticated Ticket Dispatch):** Employees submit support requests with strictly verified user identities, removing arbitrary email or fallback requester spoofing.
+- **S10 (Encrypted Software Licenses):** Product activation keys and enterprise software license credentials are encrypted at rest with AES-256-GCM and restricted to Administrator roles.
+- **S12 (2FA Hardening):** Re-keying TOTP tokens requires current password verification; failed 2FA verification attempts increment brute-force lockout counters; added secure emergency recovery codes and revocation endpoints.
+- **S13 (Token Revocation & Refresh Rotation):** Implemented cryptographic refresh token rotation and real-time session invalidation on password change, role demotion, or administrative logout. Deprecated URL-based authentication tokens.
+- **S14 (Network Boundary & Rate Limiting):** Enforced strict CORS origin allow-lists, dedicated authentication brute-force rate limits (IP + username), and opt-in reverse proxy trust flags (`TRUST_PROXY=1`).
+- **S15 (Dependency Remediation):** Upgraded critical parsing libraries (`xlsx` to 0.20.3, `multer` to 2.x) resolving upstream CVEs.
 
 ---
 
-## 📊 Comprehensive Audit & Verification Results
+## 🐛 Bug Fixes & Stability Improvements
 
-* **Automated Unit & Service Tests:** `30 / 30 Passed` (100% Pass Rate).
-* **Live End-to-End Enterprise Audit:** `68 / 68 Passed` (100% Pass Rate).
-* **Health & Database Connectivity:** Verified `UP` with SQLite / PostgreSQL Prisma ORM.
-* **Token Authentication & RBAC:** Verified across Super Admin, IT Admin, Support Engineer, and Employee roles.
-* **Report Exports:** Verified both CSV and XLSX data exports streaming successfully.
-* **Disaster Recovery & Snapshots:** Verified snapshot generation and configuration exports.
+- **B1 (Asset Transfers):** Direct asset-to-asset transfers now atomically terminate the prior holder's active assignment with full historical timestamps and generate a pending handover signature request for the receiving employee.
+- **B2 (Concurrency & Transactions):** Allocation, return, transfer, disposal, license seat claims, and inventory movements now execute within atomic database transactions with optimistic locking to eliminate race conditions and double allocations.
+- **B3 (Atomic Numbering):** Asset tags, model numbers, and ticket codes now leverage an atomic sequence generator (`NumberSequence`) to guarantee unique, gapless, sequential numbering without race-condition collisions.
+- **B4 (Disaster Recovery Restore):** Database restore routine dynamically reads the connection string from `DATABASE_URL`, gracefully terminates existing connection pools before swapping SQLite database files, and restores PostgreSQL databases table-by-table.
+- **B5, B6 (Auth Token Management):** Unified frontend storage key handling for authentication tokens and implemented seamless silent refresh for expired access tokens without disrupting user navigation.
+- **B7–B17 (Business Logic):** Added comprehensive validation for asset check-in/check-out; enforced maintenance completion workflows; prevented negative consumable quantities; implemented strict ticket lifecycle state machines with SLA tracking; fixed import CSV parser category resolution; converted database foreign key conflicts to clean 409 responses; unified case-insensitive search queries across both PostgreSQL and SQLite.
+- **SPA Routing:** Configured Vite base path to `'/'` to ensure deep/nested routing works on production reverse proxies and CDN deployments without blank screen issues.
 
 ---
 
-## 🛠️ Upgrading & Deployment
+## 🌟 Major Subsystem Enhancements
 
-### Render Deployment
-This repository is connected directly to Render (`https://it-asset-management-q6ey.onrender.com/`). Pushing to `main` automatically triggers a zero-downtime production deployment using `render.yaml`.
+1. **Enterprise Cloud Disaster Recovery:** Automated off-site backups to Amazon S3, Cloudflare R2, MinIO, WebDAV, Google Drive, and OneDrive with AES-256-GCM encryption and HMAC-SHA256 integrity verification.
+2. **Cryptographic Audit Log:** Full write transaction history with SHA-256 tamper-evident hash chaining.
+3. **Turnkey Setup Scripts:** Added one-touch automated setup and start scripts (`setup.bat`, `setup.ps1`, `setup.sh`, `start.bat`, `start.ps1`, `start.sh`) for Windows, Linux, and macOS.
+4. **Customization Engine:** Full support for custom asset attributes, custom lifecycle statuses, email templates, and system feature flags.
 
-```bash
-# Build Command
-npm run setup:prod
+---
 
-# Start Command
-npm run start:prod
-```
-
-### Local Development / Self-Hosted
-```bash
-# Install dependencies
-npm run install:all
-
-# Run production build
-npm run build:backend
-npm run build:frontend
-
-# Start services
-npm start
-```
+## 🧪 Verification
+- Backend Unit & Integration Tests: **64 / 64 passing** (100%)
+- PostgreSQL & SQLite compatibility verified

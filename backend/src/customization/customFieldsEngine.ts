@@ -36,7 +36,7 @@ export const DEFAULT_CUSTOM_FIELDS: Record<CustomFieldEntity, CustomFieldDefinit
       label: 'Business Criticality',
       type: 'select',
       required: false,
-      defaultValue: 'TIER_3',
+      defaultValue: 'TIER_3_STANDARD_OFFICE',
       options: ['TIER_1_MISSION_CRITICAL', 'TIER_2_BUSINESS_IMPORTANT', 'TIER_3_STANDARD_OFFICE', 'TIER_4_LOW_PRIORITY'],
       order: 3,
       isActive: true,
@@ -120,6 +120,29 @@ export const DEFAULT_CUSTOM_FIELDS: Record<CustomFieldEntity, CustomFieldDefinit
   CONSUMABLE: [],
 };
 
+/**
+ * A select field's default must be one of its options. Older installs shipped
+ * criticalityLevel with default "TIER_3" while the options are "TIER_3_STANDARD_OFFICE" etc.,
+ * which made every edit of an asset without that value fail validation.
+ * Returns the repaired default (closest option by prefix) or undefined.
+ */
+export function repairSelectDefault(f: Partial<CustomFieldDefinition>): { changed: boolean; value: any } {
+  const opts = Array.isArray((f as any).options) ? ((f as any).options as string[]) : [];
+  const d = (f as any).defaultValue;
+  if (!['select', 'multiselect'].includes(String(f.type)) || !opts.length || d === undefined || d === null || d === '') return { changed: false, value: d };
+  if (opts.includes(String(d))) return { changed: false, value: d };
+  const match = opts.find((o) => o.toUpperCase().startsWith(String(d).toUpperCase()));
+  return { changed: true, value: match };
+}
+
+function assertValidDefault(f: Partial<CustomFieldDefinition>) {
+  const opts = Array.isArray((f as any).options) ? ((f as any).options as string[]) : [];
+  const d = (f as any).defaultValue;
+  if (['select', 'multiselect'].includes(String(f.type)) && opts.length && d !== undefined && d !== null && d !== '' && !opts.includes(String(d))) {
+    throw { statusCode: 400, message: `Default value "${d}" must be one of the options: ${opts.join(', ')}`, code: 'INVALID_DEFAULT' };
+  }
+}
+
 export class CustomFieldsEngine {
   private static getKey(entity: CustomFieldEntity): string {
     return `customization.fields.${entity.toLowerCase()}`;
@@ -130,7 +153,19 @@ export class CustomFieldsEngine {
       const key = this.getKey(entity);
       const setting = await prisma.systemSetting.findUnique({ where: { key } });
       if (setting && setting.value) {
-        return JSON.parse(setting.value);
+        const fields: CustomFieldDefinition[] = JSON.parse(setting.value);
+        // one-time self-repair of invalid select defaults (see repairSelectDefault)
+        let repaired = false;
+        for (const f of fields) {
+          const r = repairSelectDefault(f);
+          if (r.changed) {
+            repaired = true;
+            if (r.value === undefined) delete (f as any).defaultValue;
+            else (f as any).defaultValue = r.value;
+          }
+        }
+        if (repaired) await this.saveFields(entity, fields);
+        return fields;
       }
     } catch (e) {
       console.warn(`Failed to fetch custom fields for ${entity}:`, e);
@@ -160,6 +195,7 @@ export class CustomFieldsEngine {
       throw { statusCode: 409, message: `Field with name "${cleanName}" already exists for ${entity}`, code: 'DUPLICATE_FIELD' };
     }
 
+    assertValidDefault(fieldData as any);
     const newField: CustomFieldDefinition = {
       ...fieldData,
       id: `field-${entity.toLowerCase()}-${Date.now()}`,
@@ -188,6 +224,7 @@ export class CustomFieldsEngine {
       ...updates,
       updatedAt: new Date().toISOString(),
     };
+    assertValidDefault(updatedField);
 
     current[index] = updatedField;
     await this.saveFields(entity, current);

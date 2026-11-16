@@ -88,6 +88,16 @@ export class NumberingEngine {
       },
     });
 
+    // An admin changing the counter in the Customization Center moves the live sequence as well
+    if (updates.currentSeq !== undefined && Number.isFinite(Number(updates.currentSeq))) {
+      const seqKey = this.periodKey(entity, updated, new Date());
+      await prisma.numberSequence.upsert({
+        where: { key: seqKey },
+        create: { key: seqKey, value: Number(updates.currentSeq) },
+        update: { value: Number(updates.currentSeq) },
+      });
+    }
+
     return updated;
   }
 
@@ -130,6 +140,34 @@ export class NumberingEngine {
     return result;
   }
 
+  /** Counter key for the current reset period, e.g. "TICKET", "PO:2026", "ASSET_ID:2026-11". */
+  private static periodKey(entity: string, scheme: NumberingSchemeConfig, now: Date): string {
+    if (scheme.resetFrequency === 'YEARLY') return `${entity}:${now.getFullYear()}`;
+    if (scheme.resetFrequency === 'MONTHLY') return `${entity}:${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return entity;
+  }
+
+  /**
+   * Atomically reserves the next sequence value. A single UPDATE ... SET value = value + 1 means
+   * two requests can never receive the same number, even under concurrent creates or bulk imports.
+   */
+  private static async nextValue(key: string, startAt: number): Promise<number> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const row = await prisma.numberSequence.upsert({
+          where: { key },
+          create: { key, value: startAt + 1 },
+          update: { value: { increment: 1 } },
+        });
+        return row.value;
+      } catch (e: any) {
+        // Two first-ever calls raced on create: retry, the row now exists
+        if (e?.code !== 'P2002' || attempt === 2) throw e;
+      }
+    }
+    throw new Error('Unable to reserve sequence number');
+  }
+
   /**
    * Generates next unique sequence number, increments database tracker
    */
@@ -139,47 +177,47 @@ export class NumberingEngine {
   ): Promise<string> {
     const scheme = await this.getScheme(entity);
     const now = new Date();
-    let currentSeq = scheme.currentSeq;
+    const key = this.periodKey(entity, scheme, now);
+    // First use of a NEVER-reset counter continues from the number configured in the UI
+    const startAt = scheme.resetFrequency === 'NEVER' ? Number(scheme.currentSeq) || 0 : 0;
 
-    // Handle reset frequencies
-    if (scheme.resetFrequency === 'YEARLY' && scheme.lastResetYear !== now.getFullYear()) {
-      currentSeq = 0;
-      scheme.lastResetYear = now.getFullYear();
-    } else if (scheme.resetFrequency === 'MONTHLY' && (scheme.lastResetYear !== now.getFullYear() || scheme.lastResetMonth !== now.getMonth() + 1)) {
-      currentSeq = 0;
-      scheme.lastResetYear = now.getFullYear();
-      scheme.lastResetMonth = now.getMonth() + 1;
-    }
-
-    let nextSeq = currentSeq;
     let generated = '';
-    let attempts = 0;
-
-    while (attempts < 100) {
-      nextSeq = nextSeq + 1;
-      generated = this.formatPattern(scheme.pattern, scheme.prefix, nextSeq, scheme.seqPadding, {
-        ...context,
-        date: now,
-      });
+    let seq = 0;
+    for (let attempts = 0; attempts < 100; attempts++) {
+      seq = await this.nextValue(key, startAt);
+      generated = this.formatPattern(scheme.pattern, scheme.prefix, seq, scheme.seqPadding, { ...context, date: now });
 
       let exists = false;
       if (entity === 'ASSET_ID') {
-        exists = !!(await prisma.asset.findFirst({ where: { assetId: generated } }));
+        exists = !!(await prisma.asset.findFirst({ where: { assetId: generated }, select: { id: true } }));
       } else if (entity === 'ASSET_TAG') {
-        exists = !!(await prisma.asset.findFirst({ where: { assetTag: generated } }));
+        exists = !!(await prisma.asset.findFirst({ where: { OR: [{ assetTag: generated }, { barcode: generated }] }, select: { id: true } }));
       } else if (entity === 'TICKET') {
-        exists = !!(await prisma.ticket.findFirst({ where: { ticketNumber: generated } }));
+        exists = !!(await prisma.ticket.findFirst({ where: { ticketNumber: generated }, select: { id: true } }));
       }
-
       if (!exists) break;
-      attempts++;
     }
 
-    // Save updated sequence
-    scheme.currentSeq = nextSeq;
-    await this.updateScheme(entity, scheme);
+    // Keep the scheme's display counter roughly in step (informational only; the sequence table is authoritative)
+    try {
+      const latest = await this.getScheme(entity);
+      if ((latest.currentSeq || 0) < seq) {
+        await this.saveSchemeOnly(entity, { ...latest, currentSeq: seq, lastResetYear: now.getFullYear(), lastResetMonth: now.getMonth() + 1 });
+      }
+    } catch {
+      /* non-critical */
+    }
 
     return generated;
+  }
+
+  private static async saveSchemeOnly(entity: string, scheme: NumberingSchemeConfig) {
+    const key = this.getKey(entity);
+    await prisma.systemSetting.upsert({
+      where: { key },
+      update: { value: JSON.stringify(scheme), group: 'ASSET_NUMBERING' },
+      create: { key, value: JSON.stringify(scheme), group: 'ASSET_NUMBERING' },
+    });
   }
 
   /**

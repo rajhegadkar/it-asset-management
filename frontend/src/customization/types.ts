@@ -92,6 +92,8 @@ export interface PdfLabelConfig {
   headerText: string;
   includeFields: string[];
   customHandoverTerms: string;
+  /** User name on asset labels: always, never, or ask each time a label is printed. */
+  userNameOnLabel?: 'SHOW' | 'HIDE' | 'ASK';
 }
 
 export interface FeatureFlagsConfig {

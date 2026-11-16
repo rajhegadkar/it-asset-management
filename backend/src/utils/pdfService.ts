@@ -261,8 +261,10 @@ export class PdfService {
       userName?: string;
       companyName: string;
     }>,
-    stickerStyle: string = 'QR_ONLY'
+    stickerStyle: string = 'QR_ONLY',
+    options: { showUserName?: boolean } = {}
   ): Promise<Buffer> {
+    const showUserName = options.showUserName !== false;
     return new Promise(async (resolve, reject) => {
       try {
         const doc = new PDFDocument({ margin: 20, size: 'A4' });
@@ -335,7 +337,11 @@ export class PdfService {
             // Directly below QR Code: ONLY Asset ID (Centered horizontally with QR box)
             doc.roundedRect(x + 12, y + 110, 84, 34, 4).fill('#eff6ff').strokeColor('#bfdbfe').lineWidth(0.75).stroke();
             doc.fontSize(6).fillColor('#3b82f6').font('Helvetica-Bold').text('ASSET ID', x + 12, y + 115, { width: 84, align: 'center', lineBreak: false });
-            doc.fontSize(9).fillColor('#1d4ed8').font('Helvetica-Bold').text(tagDisplay, x + 12, y + 125, { width: 84, align: 'center', height: 13, lineBreak: false, ellipsis: true });
+            // Shrink the ID until it fits the box instead of cutting it off ("TAG-IT-…")
+            doc.font('Helvetica-Bold');
+            let idSize = 9;
+            while (idSize > 5 && doc.fontSize(idSize).widthOfString(tagDisplay) > 80) idSize -= 0.5;
+            doc.fontSize(idSize).fillColor('#1d4ed8').text(tagDisplay, x + 12, y + 125 + (9 - idSize) / 2, { width: 84, align: 'center', height: 13, lineBreak: false, ellipsis: true });
 
             // Vertical Divider between columns
             doc.moveTo(x + 104, y + 28).lineTo(x + 104, y + 146).strokeColor('#e2e8f0').lineWidth(0.75).stroke();
@@ -359,10 +365,10 @@ export class PdfService {
             // Divider 2
             doc.moveTo(x + 116, y + 101).lineTo(x + 244, y + 101).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
 
-            // Row 3: User (Renamed from CURRENT ASSIGNMENT)
-            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text('USER', x + 116, y + 105, { width: 128 });
+            // Row 3: User (or Category when the user name is switched off)
+            doc.fontSize(6).fillColor('#64748b').font('Helvetica-Bold').text(showUserName ? 'USER' : 'CATEGORY', x + 116, y + 105, { width: 128 });
             doc.fontSize(8).fillColor('#1e293b').font('Helvetica-Bold')
-               .text(userDisplay, x + 116, y + 115, { width: 128, height: 26, ellipsis: true });
+               .text(showUserName ? userDisplay : a.categoryName || 'General', x + 116, y + 115, { width: 128, height: 26, ellipsis: true });
 
           } else if (mode === 'BARCODE_ONLY') {
             // ==========================================
@@ -390,7 +396,7 @@ export class PdfService {
 
             // Line 4: Grid - Left: User, Right: Asset ID
             doc.fontSize(7).fillColor('#475569').font('Helvetica')
-               .text(`User: ${userDisplay}`, x + 10, curY, { width: 130, height: 9.5, lineBreak: false, ellipsis: true })
+               .text(showUserName ? `User: ${userDisplay}` : `Dept: ${a.departmentName || 'IT'}`, x + 10, curY, { width: 130, height: 9.5, lineBreak: false, ellipsis: true })
                .text(`ID: ${a.assetId || tagDisplay}`, x + 145, curY, { width: 105, height: 9.5, lineBreak: false, ellipsis: true });
 
             // Divider Line
@@ -451,9 +457,11 @@ export class PdfService {
                .text(`Cat: ${a.categoryName || 'General'}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
             curY += 10.5;
 
-            // Line 5: User (replaces Owner)
-            doc.fontSize(7).fillColor('#475569').font('Helvetica')
-               .text(`User: ${userDisplay}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
+            // Line 5: User (omitted when the user name is switched off)
+            if (showUserName) {
+              doc.fontSize(7).fillColor('#475569').font('Helvetica')
+                 .text(`User: ${userDisplay}`, x + 8, curY, { width: 168, height: 9.5, lineBreak: false, ellipsis: true });
+            }
 
             // Divider Line before Barcode
             doc.moveTo(x + 8, y + 97).lineTo(x + labelWidth - 8, y + 97).strokeColor('#e2e8f0').lineWidth(0.5).stroke();

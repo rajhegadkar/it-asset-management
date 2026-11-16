@@ -2,6 +2,10 @@ import { prisma } from '../config/db.js';
 import { BarcodeGenerator } from '../utils/barcodeGenerator.js';
 import { PdfService } from '../utils/pdfService.js';
 import { logAuditEvent } from '../middlewares/audit.js';
+import { SAFE_USER_SELECT } from '../utils/sanitize.js';
+import { ci, safeSort, safeOrder, parseDate } from '../utils/dbCompat.js';
+import { CustomFieldsEngine } from '../customization/customFieldsEngine.js';
+import { WorkflowStatusEngine } from '../customization/workflowStatusEngine.js';
 
 export interface CreateAssetInput {
   name: string;
@@ -58,6 +62,68 @@ export interface CreateAssetInput {
 }
 
 import { NumberingEngine } from '../customization/numberingEngine.js';
+import { PdfTemplateEngine } from '../customization/pdfTemplateEngine.js';
+
+// Statuses that may only be set through their workflow endpoints (allocate / return / dispose / archive)
+const WORKFLOW_ONLY_STATUSES = ['ASSIGNED', 'DISPOSED', 'RETIRED'];
+const SORTABLE = ['createdAt', 'updatedAt', 'name', 'assetId', 'assetTag', 'serialNumber', 'status', 'condition', 'purchaseDate', 'purchaseCost', 'warrantyEnd', 'manufacturer', 'model'];
+
+/** Valid asset status codes: built-in codes plus active custom statuses from the Customization Center. */
+export async function validAssetStatuses(): Promise<string[]> {
+  const custom = (await WorkflowStatusEngine.getStatuses()).filter((s) => !s.isArchived).map((s) => s.code);
+  return Array.from(new Set(['IN_STOCK', 'AVAILABLE', 'ASSIGNED', 'IN_USE', 'UNDER_MAINTENANCE', 'REPAIR', 'LOST', 'STOLEN', 'DAMAGED', 'RETIRED', 'DISPOSED', 'RESERVED', 'RETURNED', ...custom]));
+}
+
+/** Validates custom field values against the definitions configured for ASSET in the Customization Center. */
+export async function validateCustomFields(values: Record<string, any> | undefined | null, categoryId?: string | null): Promise<Record<string, any>> {
+  const defs = (await CustomFieldsEngine.getFields('ASSET')).filter((d) => d.isActive !== false && (!d.categoryId || d.categoryId === categoryId));
+  const out: Record<string, any> = { ...(values || {}) };
+  const errors: Array<{ field: string; message: string }> = [];
+  for (const d of defs) {
+    let v = out[d.name];
+    const empty = v === undefined || v === null || v === '';
+    if (empty && d.defaultValue !== undefined && d.defaultValue !== '') {
+      // Apply the configured default only if it is itself valid (older configs had a default outside the option list)
+      const defOk = d.type !== 'select' || !d.options?.length || d.options.includes(String(d.defaultValue));
+      if (defOk) { out[d.name] = d.defaultValue; v = d.defaultValue; }
+    }
+    if ((v === undefined || v === null || v === '') ) {
+      if (d.required) errors.push({ field: `customFields.${d.name}`, message: `${d.label} is required` });
+      continue;
+    }
+    switch (d.type) {
+      case 'number':
+      case 'currency':
+        if (Number.isNaN(Number(v))) errors.push({ field: `customFields.${d.name}`, message: `${d.label} must be a number` });
+        else out[d.name] = Number(v);
+        break;
+      case 'date':
+        if (isNaN(new Date(v).getTime())) errors.push({ field: `customFields.${d.name}`, message: `${d.label} must be a valid date` });
+        break;
+      case 'checkbox':
+        out[d.name] = v === true || v === 'true' || v === 1 || v === '1';
+        break;
+      case 'select':
+        // Legacy short codes (e.g. "TIER_3" from an old default) map to the one option they abbreviate
+        if (d.options && d.options.length && !d.options.includes(String(v))) {
+          const hits = d.options.filter((o: string) => o.toUpperCase().startsWith(String(v).toUpperCase()));
+          if (hits.length === 1) { out[d.name] = hits[0]; break; }
+        }
+        if (d.options && d.options.length && !d.options.includes(String(v))) errors.push({ field: `customFields.${d.name}`, message: `${d.label} must be one of: ${d.options.join(', ')}` });
+        break;
+      case 'email':
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v))) errors.push({ field: `customFields.${d.name}`, message: `${d.label} must be an e-mail address` });
+        break;
+      case 'url':
+        if (!/^https?:\/\//i.test(String(v))) errors.push({ field: `customFields.${d.name}`, message: `${d.label} must start with http:// or https://` });
+        break;
+    }
+  }
+  if (errors.length) throw { statusCode: 400, message: 'Custom field validation failed', code: 'VALIDATION_ERROR', errors };
+  return out;
+}
+
+const OPEN_TICKET_STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'PENDING_USER', 'PENDING_VENDOR', 'REOPENED'];
 
 export class AssetService {
   /**
@@ -114,22 +180,22 @@ export class AssetService {
     if (params.search && params.search.trim() !== '') {
       const q = params.search.trim();
       where.OR = [
-        { assetId: { contains: q } },
-        { assetTag: { contains: q } },
-        { serialNumber: { contains: q } },
-        { name: { contains: q } },
-        { manufacturer: { contains: q } },
-        { model: { contains: q } },
-        { hostname: { contains: q } },
-        { ipAddress: { contains: q } },
-        { macAddress: { contains: q } },
+        { assetId: ci(q) },
+        { assetTag: ci(q) },
+        { serialNumber: ci(q) },
+        { name: ci(q) },
+        { manufacturer: ci(q) },
+        { model: ci(q) },
+        { hostname: ci(q) },
+        { ipAddress: ci(q) },
+        { macAddress: ci(q) },
         {
           currentEmployee: {
             OR: [
-              { firstName: { contains: q } },
-              { lastName: { contains: q } },
-              { employeeId: { contains: q } },
-              { email: { contains: q } },
+              { firstName: ci(q) },
+              { lastName: ci(q) },
+              { employeeId: ci(q) },
+              { email: ci(q) },
             ],
           },
         },
@@ -137,8 +203,7 @@ export class AssetService {
     }
 
     const orderBy: any = {};
-    const sortField = params.sortBy || 'createdAt';
-    orderBy[sortField] = params.sortOrder || 'desc';
+    orderBy[safeSort(params.sortBy, SORTABLE, 'createdAt')] = safeOrder(params.sortOrder);
 
     const [total, assets] = await Promise.all([
       prisma.asset.count({ where }),
@@ -221,7 +286,7 @@ export class AssetService {
         },
         tickets: {
           orderBy: { createdAt: 'desc' },
-          include: { requester: true, assignedEngineer: true },
+          include: { requester: true, assignedEngineer: { select: SAFE_USER_SELECT } },
         },
       },
     });
@@ -237,43 +302,50 @@ export class AssetService {
    * Create New Asset with Barcode & Lifecycle Record
    */
   static async createAsset(input: CreateAssetInput, user?: any) {
+    const status = (input.status || 'AVAILABLE').toUpperCase();
+    if (WORKFLOW_ONLY_STATUSES.includes(status)) {
+      throw { statusCode: 400, message: `New assets cannot be created as ${status}. Create it, then use Allocate / Dispose.`, code: 'INVALID_STATUS' };
+    }
+    if (!(await validAssetStatuses()).includes(status)) {
+      throw { statusCode: 400, message: `Unknown asset status "${status}".`, code: 'INVALID_STATUS' };
+    }
+    const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+    if (!category) throw { statusCode: 400, message: 'Category not found', code: 'INVALID_CATEGORY' };
+
+    // Check the serial number first so a duplicate does not burn an Asset ID / Tag number
+    const dupSerial = await prisma.asset.findFirst({ where: { serialNumber: input.serialNumber } });
+    if (dupSerial) {
+      throw { statusCode: 409, message: `An asset with Serial Number "${input.serialNumber}" already exists.`, code: 'DUPLICATE_SERIAL' };
+    }
+    if (input.customAssetId || input.assetTag) {
+      const dup = await prisma.asset.findFirst({
+        where: { OR: [...(input.customAssetId ? [{ assetId: input.customAssetId }] : []), ...(input.assetTag ? [{ assetTag: input.assetTag }, { barcode: input.assetTag }] : [])] },
+      });
+      if (dup) throw { statusCode: 409, message: `An asset with ID "${input.customAssetId}" or Tag "${input.assetTag}" already exists.`, code: 'DUPLICATE_ASSET_ID' };
+    }
+
+    const customFields = await validateCustomFields(
+      typeof input.customFields === 'string' ? JSON.parse(input.customFields as any) : input.customFields,
+      input.categoryId
+    );
+
     const assetId = input.customAssetId || (await this.generateAssetId(input.categoryId));
     const assetTag = input.assetTag || (await this.generateAssetTag(input.categoryId));
-    const barcode = assetTag;
-    const qrCode = assetTag;
-
-    // Check duplicate serial number or asset ID
-    const existing = await prisma.asset.findFirst({
-      where: {
-        OR: [
-          { assetId },
-          { serialNumber: input.serialNumber },
-          { assetTag },
-        ],
-      },
-    });
-
-    if (existing) {
-      if (existing.serialNumber === input.serialNumber) {
-        throw { statusCode: 409, message: `An asset with Serial Number "${input.serialNumber}" already exists.`, code: 'DUPLICATE_SERIAL' };
-      }
-      throw { statusCode: 409, message: `An asset with ID "${assetId}" or Tag "${assetTag}" already exists.`, code: 'DUPLICATE_ASSET_ID' };
-    }
 
     const asset = await prisma.asset.create({
       data: {
         assetId,
         assetTag,
-        barcode,
-        qrCode,
+        barcode: assetTag,
+        qrCode: assetTag,
         serialNumber: input.serialNumber,
         name: input.name,
         categoryId: input.categoryId,
-        subcategoryId: input.subcategoryId,
-        status: input.status || 'AVAILABLE',
+        subcategoryId: input.subcategoryId || null,
+        status,
         condition: input.condition || 'NEW',
-        departmentId: input.departmentId,
-        locationId: input.locationId,
+        departmentId: input.departmentId || null,
+        locationId: input.locationId || null,
         costCenter: input.costCenter,
         businessUnit: input.businessUnit,
         floor: input.floor,
@@ -299,22 +371,20 @@ export class AssetService {
         portCount: input.portCount ? Number(input.portCount) : null,
         rackUnit: input.rackUnit,
         datacenter: input.datacenter,
-        vendorId: input.vendorId,
+        vendorId: input.vendorId || null,
         poNumber: input.poNumber,
         invoiceNumber: input.invoiceNumber,
-        purchaseDate: input.purchaseDate ? new Date(input.purchaseDate) : null,
+        purchaseDate: parseDate(input.purchaseDate, 'purchaseDate'),
         purchaseCost: input.purchaseCost ? Number(input.purchaseCost) : 0,
         currency: input.currency || 'USD',
-        warrantyStart: input.warrantyStart ? new Date(input.warrantyStart) : null,
-        warrantyEnd: input.warrantyEnd ? new Date(input.warrantyEnd) : null,
+        warrantyStart: parseDate(input.warrantyStart, 'warrantyStart'),
+        warrantyEnd: parseDate(input.warrantyEnd, 'warrantyEnd'),
         warrantyProvider: input.warrantyProvider,
-        amcStart: input.amcStart ? new Date(input.amcStart) : null,
-        amcEnd: input.amcEnd ? new Date(input.amcEnd) : null,
+        amcStart: parseDate(input.amcStart, 'amcStart'),
+        amcEnd: parseDate(input.amcEnd, 'amcEnd'),
         contractNumber: input.contractNumber,
         expectedLifeYears: input.expectedLifeYears ? Number(input.expectedLifeYears) : 3,
-        customFields: input.customFields
-          ? (typeof input.customFields === 'string' ? input.customFields : JSON.stringify(input.customFields))
-          : null,
+        customFields: Object.keys(customFields).length ? JSON.stringify(customFields) : null,
         notes: input.notes,
         description: input.description,
       },
@@ -326,7 +396,6 @@ export class AssetService {
       },
     });
 
-    // Record Immutable Lifecycle Log
     await prisma.assetLifecycleLog.create({
       data: {
         assetId: asset.id,
@@ -344,27 +413,54 @@ export class AssetService {
   }
 
   /**
-   * Update Asset
+   * Update Asset. Input must already be validated by updateAssetSchema (allow-listed fields only).
+   * Custody, archive and disposal fields are never writable here: use the workflow endpoints.
    */
   static async updateAsset(id: string, input: Partial<CreateAssetInput>, user?: any) {
     const existing = await prisma.asset.findUnique({ where: { id } });
     if (!existing) {
       throw { statusCode: 404, message: 'Asset not found', code: 'ASSET_NOT_FOUND' };
     }
+    if (existing.isArchived || existing.status === 'DISPOSED') {
+      throw { statusCode: 400, message: 'Retired or disposed assets cannot be edited.', code: 'ASSET_INACTIVE' };
+    }
 
     const data: any = { ...input };
-    if (input.purchaseDate) data.purchaseDate = new Date(input.purchaseDate);
-    if (input.warrantyStart) data.warrantyStart = new Date(input.warrantyStart);
-    if (input.warrantyEnd) data.warrantyEnd = new Date(input.warrantyEnd);
-    if (input.amcStart) data.amcStart = new Date(input.amcStart);
-    if (input.amcEnd) data.amcEnd = new Date(input.amcEnd);
-    if (input.customFields !== undefined) {
-      data.customFields = input.customFields
-        ? (typeof input.customFields === 'string' ? input.customFields : JSON.stringify(input.customFields))
-        : null;
+    delete data.customAssetId;
+
+    if (input.status !== undefined && input.status !== existing.status) {
+      const next = String(input.status).toUpperCase();
+      if (WORKFLOW_ONLY_STATUSES.includes(next)) {
+        throw { statusCode: 400, message: `Status ${next} can only be set through the Allocate / Archive / Dispose workflow.`, code: 'INVALID_STATUS_TRANSITION' };
+      }
+      if (existing.currentEmployeeId && !['IN_USE'].includes(next)) {
+        throw { statusCode: 400, message: 'This asset is assigned to an employee. Return or transfer it before changing its status.', code: 'INVALID_STATUS_TRANSITION' };
+      }
+      if (!(await validAssetStatuses()).includes(next)) {
+        throw { statusCode: 400, message: `Unknown asset status "${next}".`, code: 'INVALID_STATUS' };
+      }
+      data.status = next;
     }
-    if (input.portCount !== undefined) data.portCount = Number(input.portCount);
-    if (input.purchaseCost !== undefined) data.purchaseCost = Number(input.purchaseCost);
+
+    for (const f of ['purchaseDate', 'warrantyStart', 'warrantyEnd', 'amcStart', 'amcEnd'] as const) {
+      if ((input as any)[f] !== undefined) data[f] = parseDate((input as any)[f], f);
+    }
+    for (const f of ['departmentId', 'locationId', 'vendorId', 'subcategoryId'] as const) {
+      if ((input as any)[f] === '') data[f] = null;
+    }
+    if (input.customFields !== undefined) {
+      const cf = await validateCustomFields(
+        typeof input.customFields === 'string' ? JSON.parse(input.customFields as any) : input.customFields,
+        input.categoryId || existing.categoryId
+      );
+      data.customFields = Object.keys(cf).length ? JSON.stringify(cf) : null;
+    }
+    if (input.portCount !== undefined) data.portCount = input.portCount === null || (input.portCount as any) === '' ? null : Number(input.portCount);
+    if (input.purchaseCost !== undefined) data.purchaseCost = Number(input.purchaseCost) || 0;
+    if (input.assetTag !== undefined && input.assetTag !== existing.assetTag) {
+      data.barcode = input.assetTag;
+      data.qrCode = input.assetTag;
+    }
 
     const updated = await prisma.asset.update({
       where: { id },
@@ -378,16 +474,23 @@ export class AssetService {
       },
     });
 
-    // Log update lifecycle event
+    const changed: Record<string, { from: any; to: any }> = {};
+    for (const k of Object.keys(data)) {
+      const before = (existing as any)[k];
+      const after = (updated as any)[k];
+      if (String(before ?? '') !== String(after ?? '')) changed[k] = { from: before, to: after };
+    }
+
     await prisma.assetLifecycleLog.create({
       data: {
         assetId: id,
         eventType: 'UPDATE',
-        description: `Asset specification and record updated`,
+        description: Object.keys(changed).length ? `Updated: ${Object.keys(changed).join(', ')}` : 'Asset record saved (no changes)',
         fromStatus: existing.status,
         toStatus: updated.status,
         performedById: user?.id,
         performedBy: user ? `${user.firstName || user.username}` : 'System',
+        metadata: JSON.stringify(changed).slice(0, 10000),
       },
     });
 
@@ -432,7 +535,12 @@ export class AssetService {
   /**
    * Bulk generate printable labels PDF (complete inventory or specific required assets)
    */
-  static async generateLabelsPdf(assetIds?: string[], all?: boolean, requestedStyle?: string): Promise<Buffer> {
+  static async generateLabelsPdf(
+    assetIds?: string[],
+    all?: boolean,
+    requestedStyle?: string,
+    showUserName?: boolean
+  ): Promise<Buffer> {
     const isAll = all === true || (Array.isArray(assetIds) && assetIds.includes('all'));
     
     let assets;
@@ -512,7 +620,15 @@ export class AssetService {
       };
     });
 
-    return await PdfService.generateAssetLabelSheet(labelData, stickerStyle);
+    // User name on the label: explicit per-print choice wins, otherwise the Customization Centre setting
+    // (SHOW / ASK print it by default, HIDE leaves it off).
+    let includeUserName = showUserName;
+    if (includeUserName === undefined) {
+      const cfg = await PdfTemplateEngine.getConfig();
+      includeUserName = cfg.userNameOnLabel !== 'HIDE';
+    }
+
+    return await PdfService.generateAssetLabelSheet(labelData, stickerStyle, { showUserName: includeUserName });
   }
 
   /**
@@ -535,9 +651,9 @@ export class AssetService {
       recentAllocations,
     ] = await Promise.all([
       prisma.asset.count({ where: { isArchived: false } }),
-      prisma.asset.count({ where: { isArchived: false, status: 'ASSIGNED' } }),
+      prisma.asset.count({ where: { isArchived: false, status: { in: ['ASSIGNED', 'IN_USE'] } } }),
       prisma.asset.count({ where: { isArchived: false, status: 'AVAILABLE' } }),
-      prisma.asset.count({ where: { isArchived: false, status: 'UNDER_MAINTENANCE' } }),
+      prisma.asset.count({ where: { isArchived: false, status: { in: ['UNDER_MAINTENANCE', 'REPAIR'] } } }),
       prisma.asset.count({ where: { status: 'DISPOSED' } }),
       prisma.asset.groupBy({
         by: ['categoryId'],
@@ -564,10 +680,12 @@ export class AssetService {
           },
         },
       }),
-      prisma.ticket.count({ where: { status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] } } }),
-      prisma.ticket.count({ where: { priority: 'CRITICAL', status: { not: 'CLOSED' } } }),
+      prisma.ticket.count({ where: { status: { in: OPEN_TICKET_STATUSES } } }),
+      prisma.ticket.count({ where: { priority: 'CRITICAL', status: { in: OPEN_TICKET_STATUSES } } }),
+      // Low stock = at or below each item's own minimum, not a fixed number
       prisma.consumable.findMany({
-        where: { stockQuantity: { lte: 5 } },
+        where: { stockQuantity: { lte: prisma.consumable.fields.minQuantity } },
+        orderBy: { stockQuantity: 'asc' },
         take: 5,
       }),
       prisma.assetAssignment.findMany({
@@ -628,17 +746,17 @@ export class AssetService {
       where: {
         isArchived: false,
         OR: [
-          { assetTag: { contains: q } },
-          { assetId: { contains: q } },
-          { serialNumber: { contains: q } },
-          { barcode: { contains: q } },
-          { name: { contains: q } },
+          { assetTag: ci(q) },
+          { assetId: ci(q) },
+          { serialNumber: ci(q) },
+          { barcode: ci(q) },
+          { name: ci(q) },
           {
             currentEmployee: {
               OR: [
-                { firstName: { contains: q } },
-                { lastName: { contains: q } },
-                { employeeId: { contains: q } },
+                { firstName: ci(q) },
+                { lastName: ci(q) },
+                { employeeId: ci(q) },
               ],
             },
           },

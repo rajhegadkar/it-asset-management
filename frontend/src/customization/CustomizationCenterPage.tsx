@@ -37,6 +37,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { DisasterRecoveryCenter } from './DisasterRecoveryCenter.js';
+import { confirmDialog } from '../components/ui/dialogs.js';
+import { invalidateLabelSettings } from '../components/ui/labelPrint.js';
 
 export const CustomizationCenterPage: React.FC = () => {
   const { branding, updateBranding, refreshBranding } = useBranding();
@@ -104,6 +106,7 @@ export const CustomizationCenterPage: React.FC = () => {
     headerText: 'PROPERTY OF IT OPERATIONS',
     includeFields: ['assetTag', 'serialNumber', 'model', 'category'],
     customHandoverTerms: '',
+    userNameOnLabel: 'ASK',
   });
 
   // --- 7. Feature Flags State ---
@@ -219,7 +222,7 @@ export const CustomizationCenterPage: React.FC = () => {
 
   // Handle Field Delete
   const handleDeleteField = async (fieldId: string) => {
-    if (!confirm('Are you sure you want to delete this custom field? Existing entity values will be retained in audit logs.')) return;
+    if (!await confirmDialog('Are you sure you want to delete this custom field? Existing entity values will be retained in audit logs.')) return;
     try {
       await customizationApi.deleteField(fieldEntity, fieldId);
       const data = await customizationApi.getFields(fieldEntity);
@@ -293,7 +296,7 @@ export const CustomizationCenterPage: React.FC = () => {
 
   // Handle Status Delete
   const handleDeleteStatus = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this custom status?')) return;
+    if (!await confirmDialog('Are you sure you want to remove this custom status?')) return;
     try {
       await customizationApi.deleteStatus(id);
       const data = await customizationApi.getStatuses();
@@ -351,7 +354,8 @@ export const CustomizationCenterPage: React.FC = () => {
   const handleSavePdfConfig = async () => {
     try {
       await customizationApi.updatePdfTemplates(pdfConfig);
-      showFeedback('Sticker sheet dimensions and Handover custody terms saved');
+      invalidateLabelSettings();
+      showFeedback('Label settings and handover custody terms saved');
     } catch (e) {
       showFeedback('Failed to save PDF templates configuration', 'error');
     }
@@ -394,7 +398,7 @@ export const CustomizationCenterPage: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (!confirm('Restoring this configuration will overwrite your current branding, numbering, and custom schemas. Proceed?')) return;
+        if (!await confirmDialog('Restoring this configuration will overwrite your current branding, numbering, and custom schemas. Proceed?')) return;
         await customizationApi.importBackup(parsed);
         await refreshBranding();
         await loadTabData();
@@ -408,7 +412,7 @@ export const CustomizationCenterPage: React.FC = () => {
 
   // Handle Reset Defaults
   const handleResetDefaults = async () => {
-    if (!confirm('Are you sure you want to reset all customizations to factory defaults? This cannot be undone.')) return;
+    if (!await confirmDialog('Are you sure you want to reset all customizations to factory defaults? This cannot be undone.')) return;
     try {
       await customizationApi.resetDefaults();
       await refreshBranding();
@@ -1261,6 +1265,45 @@ export const CustomizationCenterPage: React.FC = () => {
                     </div>
                   </div>
 
+                  <fieldset data-testid="label-username-setting">
+                    <legend className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      User name on labels
+                    </legend>
+                    <p className="text-[11px] text-slate-500 mb-2">
+                      Choose whether the assigned user's name is printed on asset labels.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {([
+                        { v: 'ASK', t: 'Ask every time', d: 'Pick “with” or “without” when printing' },
+                        { v: 'SHOW', t: 'Always show', d: 'Every label shows the user' },
+                        { v: 'HIDE', t: 'Never show', d: 'Labels never show the user' },
+                      ] as const).map((o) => {
+                        const active = (pdfConfig.userNameOnLabel || 'ASK') === o.v;
+                        return (
+                          <label
+                            key={o.v}
+                            className={`cursor-pointer rounded-xl border p-3 transition ${
+                              active
+                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 dark:bg-blue-950/40'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="userNameOnLabel"
+                              value={o.v}
+                              checked={active}
+                              onChange={() => setPdfConfig({ ...pdfConfig, userNameOnLabel: o.v })}
+                              className="sr-only"
+                            />
+                            <span className="block text-xs font-semibold text-slate-900 dark:text-white">{o.t}</span>
+                            <span className="block text-[11px] text-slate-500 mt-0.5">{o.d}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
                       <span>Handover Acknowledgement Certificate — Custom Terms of Custody</span>
@@ -1375,10 +1418,14 @@ export const CustomizationCenterPage: React.FC = () => {
                               </div>
                               <div className="border-t border-slate-200" />
 
-                              {/* Row 3: User */}
+                              {/* Row 3: User (Category when the user name is off) */}
                               <div>
-                                <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">USER</div>
-                                <div className="text-[10px] font-bold text-slate-800 truncate">Unassigned (In Stock)</div>
+                                <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">
+                                  {pdfConfig.userNameOnLabel === 'HIDE' ? 'CATEGORY' : 'USER'}
+                                </div>
+                                <div className="text-[10px] font-bold text-slate-800 truncate">
+                                  {pdfConfig.userNameOnLabel === 'HIDE' ? 'Computing' : 'Jane Doe'}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1403,6 +1450,9 @@ export const CustomizationCenterPage: React.FC = () => {
                               <div className="text-[9px] text-slate-500 font-medium pt-0.5">
                                 Cat: Computing
                               </div>
+                              {pdfConfig.userNameOnLabel !== 'HIDE' && (
+                                <div className="text-[9px] text-slate-500 font-medium">User: Jane Doe</div>
+                              )}
                             </div>
 
                             <div className="shrink-0 w-16 h-16 border border-slate-200 rounded p-1 flex items-center justify-center bg-white">
@@ -1456,7 +1506,11 @@ export const CustomizationCenterPage: React.FC = () => {
                           <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
                             <div className="truncate"><span className="text-slate-400 font-bold">S/N:</span> SN-HP-ZB10-0045</div>
                             <div className="truncate"><span className="text-slate-400 font-bold">Cat:</span> Computing</div>
-                            <div className="truncate"><span className="text-slate-400 font-bold">User:</span> Unassigned (In Stock)</div>
+                            {pdfConfig.userNameOnLabel === 'HIDE' ? (
+                              <div className="truncate"><span className="text-slate-400 font-bold">Dept:</span> IT</div>
+                            ) : (
+                              <div className="truncate"><span className="text-slate-400 font-bold">User:</span> Jane Doe</div>
+                            )}
                             <div className="truncate"><span className="text-slate-400 font-bold">ID:</span> IT-COM-000011</div>
                           </div>
 
@@ -1752,7 +1806,7 @@ export const CustomizationCenterPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 API Key Name *
@@ -1901,7 +1955,7 @@ export const CustomizationCenterPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Status Code *

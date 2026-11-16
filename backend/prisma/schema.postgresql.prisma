@@ -1,5 +1,5 @@
-// PostgreSQL Production Prisma schema for IT Asset Management System
-// Used in Docker Compose and Cloud/On-Premises PostgreSQL deployments
+// Prisma schema for IT Asset Management System
+// Supports SQLite for zero-config local/embedded deployment and PostgreSQL for enterprise Docker/Cloud
 
 generator client {
   provider = "prisma-client-js"
@@ -88,6 +88,9 @@ model User {
   isEmailVerified     Boolean        @default(false)
   twoFactorEnabled    Boolean        @default(false)
   twoFactorSecret     String?
+  twoFactorRecoveryCodes String?  // JSON array of bcrypt hashes of one-time recovery codes
+  tokenVersion        Int            @default(0) // bump to revoke all sessions
+  mustChangePassword  Boolean        @default(false)
   failedLoginAttempts Int            @default(0)
   lockoutUntil        DateTime?
   lastLoginAt         DateTime?
@@ -112,6 +115,8 @@ model LoginHistory {
   status    String   // SUCCESS, FAILED, LOCKED
   reason    String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Employee {
@@ -130,7 +135,7 @@ model Employee {
   manager          Employee?         @relation("ManagerSubordinates", fields: [managerId], references: [id])
   subordinates     Employee[]        @relation("ManagerSubordinates")
   joiningDate      DateTime?
-  employmentStatus String            @default("ACTIVE")
+  employmentStatus String            @default("ACTIVE") // ACTIVE, PROBATION, NOTICE_PERIOD, TERMINATED, RESIGNED
   costCenter       String?
   profilePhoto     String?
   userId           String?           @unique
@@ -148,12 +153,14 @@ model Employee {
   ticketsRequested Ticket[]          @relation("Requester")
   licenseAssignments LicenseAssignment[]
   consumableTransactions ConsumableTransaction[]
+
+  @@index([employmentStatus])
 }
 
 model Department {
   id             String        @id @default(uuid())
   name           String
-  code           String        @unique
+  code           String        @unique // IT, HR, FIN
   departmentHead String?
   locationId     String?
   location       Location?     @relation(fields: [locationId], references: [id])
@@ -175,7 +182,7 @@ model Location {
   id             String        @id @default(uuid())
   name           String
   code           String        @unique
-  type           String        @default("OFFICE")
+  type           String        @default("OFFICE") // COMPANY, COUNTRY, STATE, CITY, OFFICE, BUILDING, FLOOR, ROOM, RACK
   parentId       String?
   parent         Location?     @relation("LocationHierarchy", fields: [parentId], references: [id])
   children       Location[]    @relation("LocationHierarchy")
@@ -227,7 +234,7 @@ model Category {
   subcategories      Category[]    @relation("CategoryHierarchy")
   description        String?
   icon               String?
-  customFieldsSchema String?
+  customFieldsSchema String?       // JSON string describing custom fields
   organizationId     String?
   organization       Organization? @relation(fields: [organizationId], references: [id])
   createdAt          DateTime      @default(now())
@@ -238,7 +245,7 @@ model Category {
 
 model Asset {
   id                 String             @id @default(uuid())
-  assetId            String             @unique
+  assetId            String             @unique // IT-LAP-000001
   assetTag           String             @unique
   barcode            String             @unique
   qrCode             String?
@@ -247,9 +254,10 @@ model Asset {
   categoryId         String
   category           Category           @relation(fields: [categoryId], references: [id])
   subcategoryId      String?
-  status             String             @default("IN_STOCK")
-  condition          String             @default("GOOD")
+  status             String             @default("IN_STOCK") // IN_STOCK, AVAILABLE, ASSIGNED, IN_USE, UNDER_MAINTENANCE, REPAIR, LOST, STOLEN, DAMAGED, RETIRED, DISPOSED, RESERVED, PENDING_ALLOCATION, PENDING_RETURN, RETURNED
+  condition          String             @default("GOOD")     // NEW, EXCELLENT, GOOD, FAIR, POOR, DAMAGED
 
+  // Organization & Hierarchy
   organizationId     String?
   organization       Organization?      @relation(fields: [organizationId], references: [id])
   departmentId       String?
@@ -263,6 +271,7 @@ model Asset {
   rack               String?
   ownerDepartmentId  String?
 
+  // Hardware Specifications
   manufacturer       String?
   brand              String?
   model              String?
@@ -280,6 +289,7 @@ model Asset {
   ipAddress          String?
   hostname           String?
 
+  // Network & Server Specifications
   managementIp       String?
   vlan               String?
   firmwareVersion    String?
@@ -294,6 +304,7 @@ model Asset {
   powerSupply        String?
   iloAddress         String?
 
+  // Purchase & Warranty
   vendorId           String?
   vendor             Vendor?            @relation(fields: [vendorId], references: [id])
   poNumber           String?
@@ -308,6 +319,7 @@ model Asset {
   amcEnd             DateTime?
   contractNumber     String?
 
+  // Lifecycle
   acquisitionDate    DateTime?
   commissionDate     DateTime?
   expectedLifeYears  Int?               @default(3)
@@ -318,6 +330,7 @@ model Asset {
   disposalValue      Float?
   disposalApprovedBy String?
 
+  // Assignment current
   currentEmployeeId  String?
   currentEmployee    Employee?          @relation("AssignedEmployee", fields: [currentEmployeeId], references: [id])
   assignmentDate     DateTime?
@@ -325,7 +338,8 @@ model Asset {
   allocationType     String?
   handoverStatus     String?
 
-  customFields       String?
+  // Custom data & attachments
+  customFields       String?            // JSON string for dynamic fields
   notes              String?
   description        String?
   imageUrl           String?
@@ -341,6 +355,14 @@ model Asset {
   tickets            Ticket[]
   licenseAssignments LicenseAssignment[]
   consumableUsage    ConsumableTransaction[]
+
+  @@index([status])
+  @@index([currentEmployeeId])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([locationId])
+  @@index([isArchived, createdAt])
+  @@index([warrantyEnd])
 }
 
 model AssetAssignment {
@@ -350,22 +372,26 @@ model AssetAssignment {
   employeeId         String
   employee           Employee     @relation(fields: [employeeId], references: [id])
   allocatedById      String
-  allocationType     String       @default("PERMANENT")
+  allocationType     String       @default("PERMANENT") // PERMANENT, TEMPORARY, PROJECT, LOANER, REMOTE_WORK, REPLACEMENT
   allocationDate     DateTime     @default(now())
   expectedReturnDate DateTime?
-  accessories        String?
+  accessories        String?      // JSON array of accessories: ["Charger", "Mouse", "Laptop Bag", "HDMI Cable"]
   termsAccepted      Boolean      @default(false)
   acknowledgedAt     DateTime?
-  acknowledgementType String?
+  acknowledgementType String?     // CHECKBOX, DIGITAL_SIGNATURE, OTP
   acknowledgementIp  String?
   handoverDocUrl     String?
-  signatureData      String?
-  status             String       @default("ACTIVE")
+  signatureData      String?      // Base64 or text signature
+  status             String       @default("ACTIVE") // ACTIVE, RETURNED, OVERDUE
+  returnedAt         DateTime?
   notes              String?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
   returns            AssetReturn[]
+
+  @@index([assetId, status])
+  @@index([employeeId, status])
 }
 
 model AssetReturn {
@@ -378,10 +404,10 @@ model AssetReturn {
   employee           Employee         @relation(fields: [employeeId], references: [id])
   returnedDate       DateTime         @default(now())
   receivedById       String
-  condition          String
+  condition          String           // EXCELLENT, GOOD, FAIR, DAMAGED
   damageNotes        String?
-  accessoriesReturned String?
-  missingAccessories String?
+  accessoriesReturned String?         // JSON array
+  missingAccessories String?         // JSON array
   returnReceiptUrl   String?
   notes              String?
   createdAt          DateTime         @default(now())
@@ -414,25 +440,27 @@ model AssetLifecycleLog {
   id            String   @id @default(uuid())
   assetId       String
   asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  eventType     String
+  eventType     String   // PURCHASE, RECEIVING, INVENTORY, TAGGING, ALLOCATION, ACTIVE_USE, MAINTENANCE, TRANSFER, RETURN, RETIREMENT, DISPOSAL, STATUS_CHANGE, UPDATE
   description   String
   fromStatus    String?
   toStatus      String?
   performedById String?
-  performedBy   String?
+  performedBy   String?  // Name or email of operator
   ipAddress     String?
-  metadata      String?
+  metadata      String?  // JSON additional information
   createdAt     DateTime @default(now())
+
+  @@index([assetId])
 }
 
 model Ticket {
   id                 String          @id @default(uuid())
-  ticketNumber       String          @unique
+  ticketNumber       String          @unique // TIK-000001
   subject            String
   description        String
-  category           String          @default("HARDWARE")
-  priority           String          @default("MEDIUM")
-  status             String          @default("OPEN")
+  category           String          @default("HARDWARE") // HARDWARE, SOFTWARE, NETWORK, ACCESS, OTHER
+  priority           String          @default("MEDIUM")   // CRITICAL, HIGH, MEDIUM, LOW
+  status             String          @default("OPEN")     // OPEN, ASSIGNED, IN_PROGRESS, PENDING_USER, PENDING_VENDOR, RESOLVED, CLOSED, REOPENED
   requesterId        String
   requester          Employee        @relation("Requester", fields: [requesterId], references: [id])
   assignedEngineerId String?
@@ -446,12 +474,19 @@ model Ticket {
   slaDueDate         DateTime?
   resolvedAt         DateTime?
   closedAt           DateTime?
+  firstResponseAt    DateTime?
+  slaBreachNotifiedAt DateTime?
   organizationId     String?
   organization       Organization?   @relation(fields: [organizationId], references: [id])
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   comments           TicketComment[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([assignedEngineerId])
+  @@index([createdAt])
 }
 
 model TicketComment {
@@ -463,15 +498,17 @@ model TicketComment {
   authorName  String
   comment     String
   isInternal  Boolean  @default(false)
-  attachments String?
+  attachments String?  // JSON array of file paths
   createdAt   DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model MaintenanceRecord {
   id              String   @id @default(uuid())
   assetId         String
   asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  maintenanceType String
+  maintenanceType String   // PREVENTIVE, CORRECTIVE, EMERGENCY
   vendorId        String?
   vendor          Vendor?  @relation(fields: [vendorId], references: [id])
   engineerName    String?
@@ -488,6 +525,8 @@ model MaintenanceRecord {
   organizationId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([assetId])
 }
 
 model SoftwareLicense {
@@ -495,7 +534,7 @@ model SoftwareLicense {
   softwareName      String
   publisher         String
   version           String?
-  licenseType       String
+  licenseType       String              // PER_USER, PER_DEVICE, SUBSCRIPTION, PERPETUAL, CONCURRENT, ENTERPRISE
   licenseKey        String?
   purchaseDate      DateTime?
   expiryDate        DateTime?
@@ -525,12 +564,15 @@ model LicenseAssignment {
   asset        Asset?          @relation(fields: [assetId], references: [id])
   assignedDate DateTime        @default(now())
   notes        String?
+
+  @@index([licenseId])
+  @@index([employeeId])
 }
 
 model Consumable {
   id             String                  @id @default(uuid())
   name           String
-  category       String
+  category       String                  // RAM, SSD, HDD, KEYBOARD, MOUSE, TONER, CABLE, ADAPTER, BATTERY, CHARGER, SFP_MODULE, OTHER
   itemCode       String                  @unique
   stockQuantity  Int                     @default(0)
   minQuantity    Int                     @default(5)
@@ -552,7 +594,7 @@ model ConsumableTransaction {
   id            String      @id @default(uuid())
   consumableId  String
   consumable    Consumable  @relation(fields: [consumableId], references: [id], onDelete: Cascade)
-  type          String
+  type          String      // INWARD, OUTWARD_ISSUE, RETURN, ADJUSTMENT
   quantity      Int
   employeeId    String?
   employee      Employee?   @relation(fields: [employeeId], references: [id])
@@ -561,6 +603,8 @@ model ConsumableTransaction {
   performedById String?
   notes         String?
   createdAt     DateTime    @default(now())
+
+  @@index([consumableId])
 }
 
 model Notification {
@@ -569,12 +613,14 @@ model Notification {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
-  type           String
+  type           String        // ASSET_ALLOCATED, ASSET_RETURNED, TICKET_UPDATE, WARRANTY_EXPIRING, AMC_EXPIRING, LICENSE_EXPIRING, LOW_STOCK, APPROVAL_PENDING, SYSTEM
   title          String
   message        String
   link           String?
   isRead         Boolean       @default(false)
   createdAt      DateTime      @default(now())
+
+  @@index([userId, isRead])
 }
 
 model AuditLog {
@@ -584,14 +630,19 @@ model AuditLog {
   userId         String?
   user           User?         @relation(fields: [userId], references: [id])
   username       String?
-  action         String
-  entity         String
+  action         String        // CREATE, UPDATE, DELETE, ALLOCATE, RETURN, TRANSFER, LOGIN, LOGOUT, EXPORT, IMPORT, SETTINGS_CHANGE
+  entity         String        // Asset, User, Employee, Ticket, License, etc.
   entityId       String?
-  oldValues      String?
-  newValues      String?
+  oldValues      String?       // JSON string
+  newValues      String?       // JSON string
   ipAddress      String?
   userAgent      String?
+  prevHash       String?
+  hash           String?       // SHA-256 chain: hash(prevHash + entry) for tamper evidence
   createdAt      DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
 }
 
 model SystemSetting {
@@ -599,15 +650,15 @@ model SystemSetting {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   key            String        @unique
-  value          String
-  group          String
+  value          String        // Value (string, number, or JSON string)
+  group          String        // BRANDING, ASSET_NUMBERING, BARCODE, EMAIL, SLA, SECURITY, BACKUP
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
 
 model Attachment {
   id           String   @id @default(uuid())
-  entityType   String
+  entityType   String   // ASSET, TICKET, MAINTENANCE, HANDOVER, VENDOR, RETURN
   entityId     String
   fileName     String
   originalName String
@@ -616,4 +667,11 @@ model Attachment {
   filePath     String
   uploadedById String?
   createdAt    DateTime @default(now())
+}
+
+// Atomic counters for Asset ID / Asset Tag / Ticket numbers (one row per entity + reset period)
+model NumberSequence {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
 }

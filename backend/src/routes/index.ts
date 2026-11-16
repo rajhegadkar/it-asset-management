@@ -7,11 +7,20 @@ import { LicenseController, ConsumableController } from '../controllers/licenseC
 import { EmployeeController, OrgDataController } from '../controllers/employeeOrgController.js';
 import { ReportImportController } from '../controllers/reportImportController.js';
 import { SettingsNotificationController } from '../controllers/settingsNotificationController.js';
-import { authenticate } from '../middlewares/auth.js';
+import { authenticate, STAFF_ROLES, ADMIN_ROLES, isStaff } from '../middlewares/auth.js';
+import { requireFeature } from '../middlewares/featureGate.js';
+import { Request, Response, NextFunction } from 'express';
+
+// The employee self-service portal can be switched off in the Customization Center (staff are unaffected)
+const portalGate = requireFeature('enableEmployeePortal');
+const employeePortalOnly = (req: Request, res: Response, next: NextFunction) => (isStaff(req) ? next() : portalGate(req, res, next));
 import { requireRole } from '../middlewares/rbac.js';
 import { uploadMiddleware } from '../middlewares/upload.js';
 
 const router = Router();
+const staff = requireRole(...STAFF_ROLES);
+const admin = requireRole(...ADMIN_ROLES);
+const superAdmin = requireRole('SUPER_ADMIN');
 
 // --- Public Health Endpoint ---
 router.get('/health', SettingsNotificationController.getHealth);
@@ -21,7 +30,9 @@ const authRouter = Router();
 authRouter.post('/login', AuthController.login);
 authRouter.post('/refresh-token', AuthController.refreshToken);
 authRouter.get('/profile', authenticate, AuthController.getProfile);
+authRouter.post('/logout', authenticate, AuthController.logout);
 authRouter.post('/setup-2fa', authenticate, AuthController.setup2FA);
+authRouter.post('/disable-2fa', authenticate, AuthController.disable2FA);
 authRouter.post('/enable-2fa', authenticate, AuthController.enable2FA);
 authRouter.post('/change-password', authenticate, AuthController.changePassword);
 router.use('/auth', authRouter);
@@ -29,22 +40,23 @@ router.use('/auth', authRouter);
 // --- Asset Routes ---
 const assetRouter = Router();
 assetRouter.use(authenticate);
-assetRouter.get('/', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), AssetController.getAssets);
-assetRouter.get('/dashboard-metrics', AssetController.getDashboardMetrics);
-assetRouter.get('/quick-search', AssetController.quickSearch);
-assetRouter.get('/track/:tag', AssetController.trackAsset);
-assetRouter.get('/:id', AssetController.getAssetById);
+// Asset register is staff-only; employees see their own equipment through /allocations/my-assets
+assetRouter.get('/', staff, AssetController.getAssets);
+assetRouter.get('/dashboard-metrics', staff, AssetController.getDashboardMetrics);
+assetRouter.get('/quick-search', staff, AssetController.quickSearch);
+assetRouter.get('/track/:tag', staff, AssetController.trackAsset);
+assetRouter.post('/labels/pdf', staff, AssetController.generateLabelsPdf);
+assetRouter.get('/labels/pdf', staff, AssetController.generateLabelsPdf);
+assetRouter.get('/:id', staff, AssetController.getAssetById);
 assetRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), AssetController.createAsset);
 assetRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), AssetController.updateAsset);
 assetRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), AssetController.archiveAsset);
-assetRouter.post('/labels/pdf', AssetController.generateLabelsPdf);
-assetRouter.get('/labels/pdf', AssetController.generateLabelsPdf);
 router.use('/assets', assetRouter);
 
 // --- Allocations, Returns, Transfers, Disposals ---
 const allocRouter = Router();
-allocRouter.use(authenticate);
-allocRouter.get('/assignments', AllocationController.listAssignments);
+allocRouter.use(authenticate, employeePortalOnly);
+allocRouter.get('/assignments', AllocationController.listAssignments); // employees are scoped to their own records in the controller
 allocRouter.get('/my-assets', AllocationController.myAssets);
 allocRouter.post('/allocate', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), AllocationController.allocateAsset);
 allocRouter.post('/acknowledge/:id', AllocationController.acknowledgeAllocation);
@@ -57,7 +69,7 @@ router.use('/allocations', allocRouter);
 // --- Helpdesk Tickets ---
 const ticketRouter = Router();
 ticketRouter.use(authenticate);
-ticketRouter.get('/', TicketController.getTickets);
+ticketRouter.get('/', TicketController.getTickets); // employees are scoped to their own tickets in the controller
 ticketRouter.get('/:id', TicketController.getTicketById);
 ticketRouter.post('/', TicketController.createTicket);
 ticketRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), TicketController.updateTicket);
@@ -66,17 +78,17 @@ router.use('/tickets', ticketRouter);
 
 // --- Maintenance Records ---
 const maintRouter = Router();
-maintRouter.use(authenticate);
-maintRouter.get('/', MaintenanceController.getRecords);
+maintRouter.use(authenticate, requireFeature('enableMaintenance'));
+maintRouter.get('/', staff, MaintenanceController.getRecords);
 maintRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), MaintenanceController.createRecord);
 maintRouter.put('/:id/complete', requireRole('SUPER_ADMIN', 'IT_ADMIN', 'SUPPORT_ENGINEER'), MaintenanceController.completeRecord);
 router.use('/maintenance', maintRouter);
 
 // --- Software Licenses (SAM) ---
 const licRouter = Router();
-licRouter.use(authenticate);
-licRouter.get('/', LicenseController.getLicenses);
-licRouter.get('/:id', LicenseController.getLicenseById);
+licRouter.use(authenticate, requireFeature('enableSamLicenses'));
+licRouter.get('/', admin, LicenseController.getLicenses);
+licRouter.get('/:id', admin, LicenseController.getLicenseById);
 licRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.createLicense);
 licRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.updateLicense);
 licRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), LicenseController.deleteLicense);
@@ -86,9 +98,9 @@ router.use('/licenses', licRouter);
 
 // --- Consumables & Spare Parts ---
 const consRouter = Router();
-consRouter.use(authenticate);
-consRouter.get('/', ConsumableController.getConsumables);
-consRouter.get('/:id', ConsumableController.getConsumableById);
+consRouter.use(authenticate, requireFeature('enableConsumables'));
+consRouter.get('/', staff, ConsumableController.getConsumables);
+consRouter.get('/:id', staff, ConsumableController.getConsumableById);
 consRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.createConsumable);
 consRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.updateConsumable);
 consRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), ConsumableController.deleteConsumable);
@@ -98,8 +110,8 @@ router.use('/consumables', consRouter);
 // --- Employees ---
 const empRouter = Router();
 empRouter.use(authenticate);
-empRouter.get('/', EmployeeController.getEmployees);
-empRouter.get('/:id', EmployeeController.getEmployeeById);
+empRouter.get('/', staff, EmployeeController.getEmployees);
+empRouter.get('/:id', EmployeeController.getEmployeeById); // staff, or an employee reading their own record (checked in controller)
 empRouter.post('/', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.createEmployee);
 empRouter.put('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.updateEmployee);
 empRouter.delete('/:id', requireRole('SUPER_ADMIN', 'IT_ADMIN'), EmployeeController.deleteEmployee);
@@ -131,6 +143,9 @@ router.use('/org', orgRouter);
 // --- Reports & Export ---
 const reportRouter = Router();
 reportRouter.use(authenticate);
+// Asset inventory export is also used by support engineers on the Assets page; everything else is admin-only
+reportRouter.get('/export', staff, ReportImportController.exportData);
+reportRouter.use(admin);
 reportRouter.get('/inventory', ReportImportController.getInventoryReport);
 reportRouter.get('/warranty', ReportImportController.getWarrantyReport);
 reportRouter.get('/allocations', ReportImportController.getAllocationsReport);
@@ -138,20 +153,20 @@ reportRouter.get('/maintenance', ReportImportController.getMaintenanceReport);
 reportRouter.get('/licenses', ReportImportController.getLicenseReport);
 reportRouter.get('/consumables', ReportImportController.getConsumablesReport);
 reportRouter.get('/disposals', ReportImportController.getDisposalReport);
-reportRouter.get('/export', ReportImportController.exportData);
 router.use('/reports', reportRouter);
 
 // --- Imports & Templates ---
 const importRouter = Router();
 importRouter.use(authenticate);
-importRouter.get('/template/:type', ReportImportController.getTemplate);
+importRouter.get('/template/:type', admin, ReportImportController.getTemplate);
 importRouter.post('/upload/:type', requireRole('SUPER_ADMIN', 'IT_ADMIN'), uploadMiddleware.single('file'), ReportImportController.importData);
 router.use('/imports', importRouter);
 
 // --- Settings, Notifications & Audit ---
 const sysRouter = Router();
 sysRouter.use(authenticate);
-sysRouter.get('/settings', SettingsNotificationController.getSettings);
+sysRouter.get('/health', superAdmin, SettingsNotificationController.getHealthDetails);
+sysRouter.get('/settings', superAdmin, SettingsNotificationController.getSettings);
 sysRouter.put('/settings', requireRole('SUPER_ADMIN'), SettingsNotificationController.updateSettings);
 sysRouter.get('/email-settings', requireRole('SUPER_ADMIN'), SettingsNotificationController.getEmailSettings);
 sysRouter.post('/email-settings', requireRole('SUPER_ADMIN'), SettingsNotificationController.updateEmailSettings);
@@ -159,7 +174,8 @@ sysRouter.post('/email/test', requireRole('SUPER_ADMIN'), SettingsNotificationCo
 sysRouter.get('/notifications', SettingsNotificationController.getNotifications);
 sysRouter.put('/notifications/:id/read', SettingsNotificationController.markNotificationRead);
 sysRouter.put('/notifications/read-all', SettingsNotificationController.markAllNotificationsRead);
-sysRouter.get('/audit-logs', requireRole('SUPER_ADMIN'), SettingsNotificationController.getAuditLogs);
+sysRouter.get('/audit-logs', superAdmin, SettingsNotificationController.getAuditLogs);
+sysRouter.get('/audit-logs/verify', superAdmin, SettingsNotificationController.verifyAuditLogs);
 router.use('/system', sysRouter);
 
 // --- Super Admin Customization Engine (Version 3) ---
